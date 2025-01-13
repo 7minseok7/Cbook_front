@@ -3,6 +3,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FieldValues, useForm } from "react-hook-form";
 import { z } from "zod";
+import { useAuth } from "../contexts/AuthContext";
+import { useApi } from "../hooks/useApi";
+import { useState } from "react";
+import { useRouter } from 'next/navigation';
 
 const signInSchema = z.object({
   username: z.string(),
@@ -25,6 +29,10 @@ export function LoginForm({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
+  const { login } = useAuth();
+  const { apiCall, isLoading } = useApi();
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   const { register, handleSubmit, formState } = useForm({
     mode: "onChange",
@@ -36,18 +44,14 @@ export function LoginForm({
   });
 
   const onSubmit = async (value: FieldValues) => {
-    const res = await fetch("/api/v1/accounts/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        ...value,
-      }),
-    });
-
-    const data = await res.json();
-    console.log(data);
+    const { data, error } = await apiCall<{ access: string, refresh: string }>('/api/v1/accounts/login', 'POST', value);
+    
+    if (error) {
+      setError(error);
+    } else if (data) {
+      login(data.access, data.refresh);
+      router.push('/profile'); // Redirect to profile page after successful login
+    }
   };
 
   return (
@@ -86,8 +90,9 @@ export function LoginForm({
                   required
                 />
               </div>
-              <Button type="submit" className="w-full">
-                로그인
+              {error && <div className="text-red-500 text-sm">{error}</div>}
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? '로그인 중...' : '로그인'}
               </Button>
             </div>
             <div className="mt-4 text-center text-sm">

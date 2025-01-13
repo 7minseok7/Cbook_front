@@ -160,7 +160,7 @@ export default function Page() {
 
       {/* Message Card */}
       <Card className="p-6 text-center">
-        <p>대시보드 처다볼 시간에 공부나 하세요.</p>
+        <p>대충 좋은 말.</p>
       </Card>
 
       {/* Bottom Button */}

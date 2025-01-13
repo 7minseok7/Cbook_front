@@ -5,10 +5,10 @@ import { Message } from "@/components/message"
 import { MessageInput } from "@/components/message-input"
 
 const initialMessages = [
-  { id: 1, content: "심심해", isUser: true, userName: "나" },
-  { id: 2, content: "그래 보여", isUser: false, userName: "팩폭이" },
-  { id: 3, content: "심심해", isUser: true, userName: "나" },
-  { id: 4, content: "시험 계획 짜줬으니까 가서 공부나 해", isUser: false, userName: "팩폭이" },
+  { id: 1, content: "심심해", isUser: true, plan: false, userName: "나" },
+  { id: 2, content: "그래 보여", isUser: false, plan: false, userName: "팩폭이" },
+  { id: 3, content: "심심해", isUser: true, plan: false, userName: "나" },
+  { id: 4, content: "시험 계획 짜줬으니까 가서 공부나 해", isUser: false, plan: true, userName: "팩폭이" },
 ]
 
 export default function ChatPage() {
@@ -17,7 +17,7 @@ export default function ChatPage() {
   const handleSendMessage = (content: string) => {
     setMessages(prev => [
       ...prev,
-      { id: prev.length + 1, content, isUser: true, userName: "나" }
+      { id: prev.length + 1, content, isUser: true, plan: false, userName: "나" }
     ])
   }
 
@@ -33,7 +33,7 @@ export default function ChatPage() {
               {"<--"} 이전 화면
             </button>
             <h1 className="text-xl font-bold absolute left-1/2 -translate-x-1/2">
-              팩폭이
+              채팅
             </h1>
           </div>
         </div>
@@ -45,6 +45,7 @@ export default function ChatPage() {
             <Message
               key={message.id}
               isUser={message.isUser}
+              plan={message.plan}
               content={message.content}
               userName={message.userName}
             />

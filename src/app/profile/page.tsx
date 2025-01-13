@@ -1,9 +1,46 @@
+"use client";
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Bell, Settings } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useAuth } from "@/contexts/AuthContext";
+import { useApi } from "@/hooks/useApi";
 
-export default function Page() {
+interface UserProfile {
+  username: string;
+  // Add other profile fields as needed
+}
+
+export default function ProfilePage() {
+  const { isAuthenticated } = useAuth();
+  const { apiCall, isLoading } = useApi();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push('/login');
+    } else {
+      fetchProfile();
+    }
+  }, [isAuthenticated, router]);
+
+  const fetchProfile = async () => {
+    const { data, error } = await apiCall<UserProfile>('/api/v1/accounts/profile/');
+    if (error) {
+      console.error('Failed to fetch profile:', error);
+    } else if (data) {
+      setProfile(data);
+    }
+  };
+
+  if (!isAuthenticated || isLoading) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <div className="container max-w-2xl mx-auto p-4 space-y-8">
       {/* Header */}
@@ -13,7 +50,7 @@ export default function Page() {
             <AvatarImage src="/placeholder.svg" alt="프로필" />
             <AvatarFallback>사용자</AvatarFallback>
           </Avatar>
-          <span className="text-lg font-medium">사용자 이름</span>
+          <span className="text-lg font-medium">{profile?.username || '사용자 이름'}</span>
         </div>
         <div className="flex items-center gap-4">
           <button className="relative">
@@ -68,4 +105,3 @@ export default function Page() {
     </div>
   )
 }
-
