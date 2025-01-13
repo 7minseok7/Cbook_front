@@ -2,39 +2,85 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bell, Settings } from 'lucide-react'
+import { Bell, Settings, LogOut, User } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/contexts/AuthContext";
 import { useApi } from "@/hooks/useApi";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+
+interface OngoingExam {
+  id: number;
+  test_name: string;
+  test_date: string;
+  test_place: string;
+}
 
 interface UserProfile {
+  id: number;
   username: string;
-  // Add other profile fields as needed
 }
 
 export default function ProfilePage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
+  const router = useRouter();
   const { apiCall, isLoading } = useApi();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const router = useRouter();
+  const [ongoingExams, setOngoingExams] = useState<OngoingExam[]>([]);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
       router.push('/login');
     } else {
-      fetchProfile();
+      fetchProfileData();
     }
   }, [isAuthenticated, router]);
 
-  const fetchProfile = async () => {
-    const { data, error } = await apiCall<UserProfile>('/api/v1/accounts/profile/');
-    if (error) {
-      console.error('Failed to fetch profile:', error);
-    } else if (data) {
-      setProfile(data);
+  const fetchProfileData = async () => {
+    try {
+      const profileResponse = await apiCall<UserProfile>('/api/v1/accounts/profile/');
+
+      if (profileResponse.error) {
+        console.error('Failed to fetch profile:', profileResponse.error);
+      } else if (profileResponse.data) {
+        setProfile(profileResponse.data);
+        // Fetch ongoing exams using the user's ID
+        const examsResponse = await apiCall<OngoingExam[]>(`/api/v1/testplans/${profileResponse.data.id}/`);
+        
+        if (examsResponse.error) {
+          console.error('Failed to fetch ongoing exams:', examsResponse.error);
+        } else if (examsResponse.data) {
+          setOngoingExams(examsResponse.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
     }
+  };
+
+  const handleLogout = () => {
+    logout();
+    router.push('/login');
   };
 
   if (!isAuthenticated || isLoading) {
@@ -48,7 +94,7 @@ export default function ProfilePage() {
         <div className="flex items-center gap-3">
           <Avatar className="h-12 w-12">
             <AvatarImage src="/placeholder.svg" alt="프로필" />
-            <AvatarFallback>사용자</AvatarFallback>
+            <AvatarFallback className='text-xl'>{profile?.username[0]}</AvatarFallback>
           </Avatar>
           <span className="text-lg font-medium">{profile?.username || '사용자 이름'}</span>
         </div>
@@ -57,9 +103,25 @@ export default function ProfilePage() {
             <Bell className="h-6 w-6" />
             <span className="absolute -top-1 -right-1 h-2 w-2 bg-red-500 rounded-full" />
           </button>
-          <button>
-            <Settings className="h-6 w-6" />
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button>
+                <Settings className="h-6 w-6" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>내 계정</DropdownMenuLabel>
+              <DropdownMenuItem>
+                <User className="mr-2 h-4 w-4" />
+                <span>내 정보 수정</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => setShowLogoutDialog(true)}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>로그아웃</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 
@@ -81,14 +143,14 @@ export default function ProfilePage() {
       <section className="space-y-4">
         <h2 className="text-2xl font-bold">진행 중인 시험</h2>
         <div className="space-y-4">
-          {[1, 2].map((i) => (
-            <Card key={i} className="p-6">
+          {ongoingExams.map((exam) => (
+            <Card key={exam.id} className="p-6">
               <div className="flex justify-between items-start">
                 <div>
-                  <h3 className="font-medium">정보처리기사</h3>
-                  <p className="mt-1">D - 42</p>
+                  <h3 className="font-medium">{exam.test_name}</h3>
+                  <p className="mt-1">{exam.test_place}</p>
                 </div>
-                <span>2025-1-1</span>
+                <span>{exam.test_date}</span>
               </div>
             </Card>
           ))}
@@ -102,6 +164,22 @@ export default function ProfilePage() {
       >
         + 새로운 시험 계획 생성하기
       </Button>
+
+      {/* Logout Confirmation Dialog */}
+      <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>정말 로그아웃할까요?</AlertDialogTitle>
+            <AlertDialogDescription>
+              학습 알림은 계속 받을 수 있습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction onClick={handleLogout}>로그아웃</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
