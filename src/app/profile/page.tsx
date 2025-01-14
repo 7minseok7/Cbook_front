@@ -43,7 +43,7 @@ interface UserProfile {
 }
 
 export default function ProfilePage() {
-  const { isAuthenticated, logout } = useAuth();
+  const { checkAuth, logout } = useAuth();
   const router = useRouter();
   const { apiCall, isLoading } = useApi();
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -51,12 +51,12 @@ export default function ProfilePage() {
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!checkAuth()) {
       router.push('/login');
     } else {
       fetchProfileData();
     }
-  }, [isAuthenticated, router]);
+  }, []);
 
   const fetchProfileData = async () => {
     try {
@@ -85,7 +85,7 @@ export default function ProfilePage() {
     router.push('/login');
   };
 
-  if (!isAuthenticated || isLoading) {
+  if (isLoading) {
     return <div>Loading...</div>;
   }
 

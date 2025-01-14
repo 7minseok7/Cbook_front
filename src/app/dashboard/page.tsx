@@ -66,14 +66,15 @@ function CircularProgress({ value }: { value: number }) {
 
 export default function Page() {
   const [currentTime, setCurrentTime] = useState(new Date())
-  const { isAuthenticated } = useAuth();
+  const { checkAuth } = useAuth();
   const router = useRouter()
 
   useEffect(() => {
-      if (!isAuthenticated) {
-        router.push('/login');
-      }
-    }, [isAuthenticated, router]);
+    const auth = checkAuth();
+    if (!auth) {
+      router.push('/login');
+    }
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
