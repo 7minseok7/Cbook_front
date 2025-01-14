@@ -50,7 +50,7 @@ export function LoginForm({
       setError(error);
     } else if (data) {
       login(data.access, data.refresh);
-      router.push('/profile'); // Redirect to profile page after successful login
+      router.push('/profile'); // 로그인 성공 시 프로필 페이지로 이동
     }
   };
 

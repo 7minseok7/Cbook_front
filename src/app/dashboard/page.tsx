@@ -1,6 +1,9 @@
-'use client'
+"use client";
 
-import * as React from 'react'
+import { useEffect, useState } from 'react';
+import { useAuth } from "@/contexts/AuthContext";
+import { useRouter } from 'next/navigation';
+
 import { Clock } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -13,6 +16,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ProgressDot } from '@/components/progress-dot'
+
+import { ModeToggle } from "@/components/theme-toggle";
 
 function CircularProgress({ value }: { value: number }) {
   const radius = 60;
@@ -60,9 +65,17 @@ function CircularProgress({ value }: { value: number }) {
 }
 
 export default function Page() {
-  const [currentTime, setCurrentTime] = React.useState(new Date())
+  const [currentTime, setCurrentTime] = useState(new Date())
+  const { isAuthenticated } = useAuth();
+  const router = useRouter()
 
-  React.useEffect(() => {
+  useEffect(() => {
+      if (!isAuthenticated) {
+        router.push('/login');
+      }
+    }, [isAuthenticated, router]);
+
+  useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
@@ -75,7 +88,11 @@ export default function Page() {
           <h1 className="text-2xl font-bold">정보처리기사</h1>
           <p className="text-sm">at 서울 여의도고등학교</p>
         </div>
-        <div className="text-right">
+        <div className="flex items-center gap-4 text-right">
+          <div>
+            <ModeToggle />
+          </div>
+          <div>
           <p className="text-sm">Now</p>
           <p className="text-2xl font-bold">
             {currentTime.toLocaleTimeString('ko-KR', {
@@ -84,6 +101,7 @@ export default function Page() {
               hour12: false
             })}
           </p>
+          </div>
         </div>
       </div>
 
@@ -164,7 +182,7 @@ export default function Page() {
       </Card>
 
       {/* Bottom Button */}
-      <Button className="w-full py-6" variant="secondary">
+      <Button onClick={() => router.push('/profile')} className="w-full py-6" variant="secondary">
         다른 시험 스케줄 관리하기
       </Button>
     </div>

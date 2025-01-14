@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+
 import { Bell, Settings, LogOut, User } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -27,6 +28,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { ModeToggle } from "@/components/theme-toggle";
 
 interface OngoingExam {
   id: number;
@@ -99,6 +101,7 @@ export default function ProfilePage() {
           <span className="text-lg font-medium">{profile?.username || '사용자 이름'}</span>
         </div>
         <div className="flex items-center gap-4">
+          <ModeToggle />
           <button className="relative">
             <Bell className="h-6 w-6" />
             <span className="absolute -top-1 -right-1 h-2 w-2 bg-red-500 rounded-full" />
@@ -110,7 +113,7 @@ export default function ProfilePage() {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>내 계정</DropdownMenuLabel>
+              <DropdownMenuLabel>설정</DropdownMenuLabel>
               <DropdownMenuItem>
                 <User className="mr-2 h-4 w-4" />
                 <span>내 정보 수정</span>
@@ -144,7 +147,7 @@ export default function ProfilePage() {
         <h2 className="text-2xl font-bold">진행 중인 시험</h2>
         <div className="space-y-4">
           {ongoingExams.map((exam) => (
-            <Card key={exam.id} className="p-6">
+            <Card key={exam.id} onClick={() => router.push('/dashboard')} className="p-6 hover:border-primary dark:hover:border-white transition-colors">
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="font-medium">{exam.test_name}</h3>

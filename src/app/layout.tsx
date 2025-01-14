@@ -4,10 +4,9 @@ import "./globals.css";
 
 // 다크모드 관련 next-theme
 import { ThemeProvider } from "@/components/theme-provider"
-import { ModeToggle } from "@/components/theme-toggle";
 
 // 로그인 토큰 관련
-import { AuthProvider } from '../contexts/AuthContext';
+import { AuthProvider } from '@/contexts/AuthContext';
 
 const pretendard = localFont({
   src: "../../public/fonts/PretendardVariable.woff2"
@@ -34,7 +33,6 @@ export default function RootLayout({
                 disableTransitionOnChange
           >
               {children}
-            <ModeToggle />  
           </ThemeProvider>
         </AuthProvider>
       </body>
