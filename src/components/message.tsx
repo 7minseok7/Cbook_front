@@ -22,9 +22,6 @@ export function Message({ isUser, plan, content, userName, children }: MessagePr
         const planData = JSON.parse(content);
         const { book_title, test_day, total_plan } = planData;
         
-        // Store the plan data in localStorage
-        localStorage.setItem('studyPlan', JSON.stringify(planData));
-
         return (
           <div>
             <p>시험 날짜: {test_day}</p>
