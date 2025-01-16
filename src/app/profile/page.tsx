@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/alert-dialog"
 
 import { ModeToggle } from "@/components/theme-toggle";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface OngoingExam {
   id: number;
@@ -79,6 +80,8 @@ export default function ProfilePage() {
   const [showNewExamDialog, setShowNewExamDialog] = useState(false);
   const [newExamName, setNewExamName] = useState('');
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
+  const [isLoadingExams, setIsLoadingExams] = useState(true);
+  const [isLoadingChatRooms, setIsLoadingChatRooms] = useState(true);
 
   useEffect(() => {
     if (!checkAuth()) {
@@ -96,17 +99,22 @@ export default function ProfilePage() {
         console.error('Failed to fetch profile:', profileResponse.error);
       } else if (profileResponse.data) {
         setProfile(profileResponse.data);
-        
-        // Fetch ongoing exams using the user's ID
-        const examsResponse = await apiCall<OngoingExam[]>(`/api/v1/testplans/${profileResponse.data.id}/`);
+
+        // 병렬로 API 호출
+        const [examsResponse, chatRoomsResponse] = await Promise.all([
+          apiCall<OngoingExam[]>(`/api/v1/testplans/${profileResponse.data.id}/`),
+          apiCall<ChatRoom[]>(`/api/v1/chatrooms/?user_id=${profileResponse.data.id}`)
+        ]);
+
+        setIsLoadingExams(false);
+        setIsLoadingChatRooms(false);
+
         if (examsResponse.error) {
           console.error('Failed to fetch ongoing exams:', examsResponse.error);
         } else if (examsResponse.data) {
           setOngoingExams(examsResponse.data);
         }
 
-        // Fetch chat rooms
-        const chatRoomsResponse = await apiCall<ChatRoom[]>(`/api/v1/chatrooms/?user_id=${profileResponse.data.id}`);
         if (chatRoomsResponse.error) {
           console.error('Failed to fetch chat rooms:', chatRoomsResponse.error);
         } else if (chatRoomsResponse.data) {
@@ -138,7 +146,7 @@ export default function ProfilePage() {
         // TODO: Show error message to user
       } else if (response.data) {
         setShowNewExamDialog(false);
-        router.push(`/chat/${profile.id}/${response.data.data.id}`);
+        router.push(`/chat/${profile.id}/${response.data.data.chat_id}`);
       }
     } catch (error) {
       console.error('Error creating new chat room:', error);
@@ -207,50 +215,69 @@ export default function ProfilePage() {
       <section className="space-y-4">
         <h2 className="text-2xl font-bold">진행 중인 시험</h2>
         <div className="space-y-4">
-          {ongoingExams.map((exam) => (
-            <Card 
-              key={exam.id} 
-              onClick={() => {
-                localStorage.setItem('selectedExam', JSON.stringify(exam));
-                router.push('/dashboard');
-              }} 
-              className="p-6 hover:border-primary dark:hover:border-white transition-colors cursor-pointer"
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="font-medium">{exam.test_name}</h3>
-                  <p className="mt-1">{exam.test_place}</p>
-                </div>
-                <span>{exam.test_date}</span>
-              </div>
-            </Card>
-          ))}
+          {isLoadingExams ? (
+            <Skeleton className="w-full h-24 p-6" />
+            ) : (
+            ongoingExams.length > 0 ? (
+              ongoingExams.map((exam) => (
+                <Card 
+                  key={exam.id} 
+                  onClick={() => {
+                    localStorage.setItem('selectedExam', JSON.stringify(exam));
+                    router.push('/dashboard');
+                  }} 
+                  className="p-6 hover:border-primary dark:hover:border-white transition-colors cursor-pointer"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-medium">{exam.test_name}</h3>
+                      <p className="mt-1">{exam.test_place}</p>
+                    </div>
+                    <span>{exam.test_date}</span>
+                  </div>
+                </Card>
+              ))) : (
+                <Card className="w-full h-24 p-6 flex justify-center items-center">
+                  진행 중인 시험이 없습니다
+                </Card>
+              )
+          )}
         </div>
       </section>
 
       {/* Chat Rooms Section */}
       <section className="space-y-4">
-        <h2 className="text-2xl font-bold">채팅방</h2>
+        <h2 className="text-2xl font-bold">채팅 계속하기</h2>
         <div className="space-y-4">
-          {chatRooms
-            .filter(room => room.testplan === null)
-            .map((room) => (
-              <Card 
+          {isLoadingChatRooms ? (
+            <Skeleton className="w-full h-24 p-6" />
+          ) : (
+            chatRooms.length > 0 ? (
+              
+              chatRooms
+              .filter(room => room.testplan === null)
+              .map((room) => (
+                <Card 
                 key={room.id} 
-                onClick={() => router.push(`/chat/${profile?.id}/${room.chat_id}`)}
-                className="p-6 hover:border-primary dark:hover:border-white transition-colors cursor-pointer"
-              >
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h3 className="font-medium">{room.chat_name}</h3>
-                    <p className="text-sm text-gray-500">
-                      생성일: {new Date(room.created_at).toLocaleDateString()}
-                    </p>
+                className="p-6 transition-colors"
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="font-medium">{room.chat_name}</h3>
+                      <p className="text-sm text-gray-500">
+                        생성일: {new Date(room.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <Button onClick={() => router.push(`/chat/${profile?.id}/${room.chat_id}`)} size="sm">채팅 계속하기</Button>
                   </div>
-                  <Button size="sm">채팅 계속하기</Button>
-                </div>
+                </Card>
+              ))
+            ) : (
+              <Card className="w-full h-24 p-6 flex justify-center items-center">
+                현재 활성화된 채팅이 없습니다
               </Card>
-            ))}
+            )
+          )}
         </div>
       </section>
 

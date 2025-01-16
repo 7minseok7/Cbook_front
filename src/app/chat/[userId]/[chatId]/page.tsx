@@ -8,11 +8,13 @@ import { useApi } from "@/hooks/useApi"
 import { useAuth } from "@/contexts/AuthContext"
 import { BookSearchResult } from "@/components/book-search-result"
 import { TypingEffect } from "@/components/typing-effect"
+import { ModeToggle } from "@/components/theme-toggle"
 
 interface ChatMessage {
   id: number;
   message_id: number;
   message_content: string;
+  action: string;
   sent_by: 'user' | 'ai';
   sent_at: string;
   chat_id: number;
@@ -80,6 +82,7 @@ export default function ChatPage() {
       id: Date.now(),
       message_id: Date.now(),
       message_content: content,
+      action: "",
       sent_by: 'user',
       sent_at: new Date().toISOString(),
       chat_id: parseInt(chatId),
@@ -104,6 +107,7 @@ export default function ChatPage() {
           id: Date.now() + 1,
           message_id: Date.now() + 1,
           message_content: JSON.stringify(data.ai_response),
+          action: data.ai_response.action,
           sent_by: 'ai',
           sent_at: new Date().toISOString(),
           chat_id: parseInt(chatId),
@@ -124,7 +128,14 @@ export default function ChatPage() {
   const renderMessage = (message: ChatMessage) => {
     if (message.sent_by === 'ai') {
       try {
-        const aiResponse: AIResponse = JSON.parse(message.message_content);
+        let aiResponse;
+
+        try {
+          aiResponse = JSON.parse(message.message_content);
+        } catch (error) {
+          aiResponse = { action: message.action, content: message.message_content };
+        }
+        
         if (aiResponse.action === 'search_books') {
           return (
             <Message
@@ -132,7 +143,7 @@ export default function ChatPage() {
               isUser={false}
               plan={false}
               content=""
-              userName="팩폭이"
+              userName="책을 찾음"
             >
               <BookSearchResult 
                 books={aiResponse.content as BookSearchResult[]} 
@@ -146,7 +157,7 @@ export default function ChatPage() {
               isUser={false}
               plan={true}
               content={aiResponse.content as string}
-              userName="팩폭이"
+              userName="계획을 세움"
             />
           );
         } else {
@@ -157,7 +168,7 @@ export default function ChatPage() {
               isUser={false}
               plan={false}
               content=""
-              userName="팩폭이"
+              userName="일상 대화"
             >
               <TypingEffect text={aiResponse.content as string} />
             </Message>
@@ -171,9 +182,9 @@ export default function ChatPage() {
             isUser={false}
             plan={false}
             content=""
-            userName="팩폭이"
+            userName="대충 오류"
           >
-            <TypingEffect text={message.message_content} />
+            <TypingEffect text={"문제가 발생했습니다. 다시 시도해 주세요."} />
           </Message>
         );
       }
@@ -203,6 +214,7 @@ export default function ChatPage() {
             <h1 className="text-xl font-bold absolute left-1/2 -translate-x-1/2">
               채팅
             </h1>
+            <ModeToggle />
           </div>
         </div>
       </header>
