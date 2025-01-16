@@ -1,3 +1,4 @@
+import React from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 
@@ -6,9 +7,37 @@ interface MessageProps {
   plan: boolean
   content: string
   userName: string
+  children?: React.ReactNode
 }
 
-export function Message({ isUser, plan, content, userName }: MessageProps) {
+export function Message({ isUser, plan, content, userName, children }: MessageProps) {
+  const renderContent = () => {
+    if (children) {
+      return children;
+    }
+
+    if (plan) {
+      const planData = content.match(/<시작>([\s\S]*?)<분할>([\s\S]*?)<분할>([\s\S]*?)<끝>/)
+      if (planData) {
+        const [, date, place, tasks] = planData
+        const taskList = tasks.split('|').map(task => {
+          const [taskDate, taskContent] = task.split(',')
+          return `${taskDate}: ${taskContent}`
+        }).join('\n')
+
+        return (
+          <div>
+            <p>시험 날짜: {date}</p>
+            <p>시험 장소: {place}</p>
+            <p>학습 계획:</p>
+            <pre>{taskList}</pre>
+          </div>
+        )
+      }
+    }
+    return content
+  }
+
   return (
     <div className={`w-full p-4 ${isUser ? 'bg-background' : 'bg-primary'}`}>
       <div className="container max-w-4xl mx-auto">
@@ -26,18 +55,18 @@ export function Message({ isUser, plan, content, userName }: MessageProps) {
               {userName}
             </div>
             <div className={`${isUser ? 'text-foreground' : 'text-white'}`}>
-              {content}
+              {renderContent()}
             </div>
-            { plan ? (
-            <a href="/plan-preview">
-              <Button 
-                variant="secondary"
-                className="w-full my-2 py-6"
-              >
-                시험 계획 미리보기
-              </Button>
-            </a>
-            ): (<></>) }
+            {plan && (
+              <a href="/plan-preview">
+                <Button 
+                  variant="secondary"
+                  className="w-full my-2 py-6"
+                >
+                  시험 계획 미리보기
+                </Button>
+              </a>
+            )}
           </div>
         </div>
       </div>

@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ProgressDot } from '@/components/progress-dot'
+import { MessageCircle } from 'lucide-react'
 
 import { ModeToggle } from "@/components/theme-toggle";
 
@@ -64,15 +65,45 @@ function CircularProgress({ value }: { value: number }) {
   )
 }
 
+interface ExamData {
+  id: number;
+  plan_id: number;
+  test_name: string;
+  test_date: string;
+  test_place: string;
+  test_plan: Array<{ target_date: string; target: string }>;
+  created_at: string;
+  updated_at: string;
+  on_progress: boolean;
+  chatroom: number;
+  user_id: number;
+}
+
 export default function Page() {
   const [currentTime, setCurrentTime] = useState(new Date())
   const { checkAuth } = useAuth();
   const router = useRouter()
+  const [examData, setExamData] = useState<ExamData | null>(null);
+  const [daysRemaining, setDaysRemaining] = useState<number>(0);
 
   useEffect(() => {
     const auth = checkAuth();
     if (!auth) {
       router.push('/login');
+    } else {
+      // Retrieve the selected exam data from localStorage
+      const storedExamData = localStorage.getItem('selectedExam');
+      if (storedExamData) {
+        const parsedExamData: ExamData = JSON.parse(storedExamData);
+        setExamData(parsedExamData);
+        
+        // Calculate days remaining
+        const examDate = new Date(parsedExamData.test_date);
+        const today = new Date();
+        const timeDiff = examDate.getTime() - today.getTime();
+        const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+        setDaysRemaining(daysDiff);
+      }
     }
   }, []);
 
@@ -81,18 +112,24 @@ export default function Page() {
     return () => clearInterval(timer)
   }, [])
 
+  if (!examData) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <div className="container max-w-2xl mx-auto p-4 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-2xl font-bold">정보처리기사</h1>
-          <p className="text-sm">at 서울 여의도고등학교</p>
+          <h1 className="text-2xl font-bold">{examData.test_name}</h1>
+          <p className="text-sm">at {examData.test_place}</p>
         </div>
         <div className="flex items-center gap-4 text-right">
-          <div>
-            <ModeToggle />
-          </div>
+          <ModeToggle />
+          <button>
+            <MessageCircle onClick={() => router.push(`/chat/${examData?.user_id}/${examData?.chatroom}`)} className="relative h-6 w-6"/>
+          </button>
+          
           <div>
           <p className="text-sm">Now</p>
           <p className="text-2xl font-bold">
@@ -110,7 +147,7 @@ export default function Page() {
       <div className="grid grid-cols-3 gap-2">
         <Card className="flex flex-col justify-center p-4 h-36">
           <p className="text-m text-center mb-2">시험까지 앞으로</p>
-          <p className="text-4xl font-bold text-center">64일</p>
+          <p className="text-4xl font-bold text-center">{daysRemaining}일</p>
         </Card>
         
         <div className="flex justify-center items-center">

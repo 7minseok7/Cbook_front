@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-
 import { Bell, Settings, LogOut, User } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/contexts/AuthContext";
 import { useApi } from "@/hooks/useApi";
@@ -26,20 +26,47 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+
 import { ModeToggle } from "@/components/theme-toggle";
 
 interface OngoingExam {
   id: number;
+  title: string;
+  daysRemaining: number;
+  examDate: string;
   test_name: string;
-  test_date: string;
   test_place: string;
+  test_date: string;
 }
 
 interface UserProfile {
   id: number;
   username: string;
+  // Add other profile fields as needed
+}
+
+interface ChatRoom {
+  id: number;
+  chat_id: number;
+  chat_name: string;
+  created_at: string;
+  updated_at: string;
+  user_id: number;
+  testplan: number | null;
+}
+
+interface ChatRoomResponse {
+  message: string;
+  data: {
+    id: number;
+    chat_id: number;
+    chat_name: string;
+    created_at: string;
+    updated_at: string;
+    user_id: number;
+    testplan: null;
+  };
 }
 
 export default function ProfilePage() {
@@ -49,6 +76,9 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [ongoingExams, setOngoingExams] = useState<OngoingExam[]>([]);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [showNewExamDialog, setShowNewExamDialog] = useState(false);
+  const [newExamName, setNewExamName] = useState('');
+  const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
 
   useEffect(() => {
     if (!checkAuth()) {
@@ -66,13 +96,21 @@ export default function ProfilePage() {
         console.error('Failed to fetch profile:', profileResponse.error);
       } else if (profileResponse.data) {
         setProfile(profileResponse.data);
+        
         // Fetch ongoing exams using the user's ID
         const examsResponse = await apiCall<OngoingExam[]>(`/api/v1/testplans/${profileResponse.data.id}/`);
-        
         if (examsResponse.error) {
           console.error('Failed to fetch ongoing exams:', examsResponse.error);
         } else if (examsResponse.data) {
           setOngoingExams(examsResponse.data);
+        }
+
+        // Fetch chat rooms
+        const chatRoomsResponse = await apiCall<ChatRoom[]>(`/api/v1/chatrooms/?user_id=${profileResponse.data.id}`);
+        if (chatRoomsResponse.error) {
+          console.error('Failed to fetch chat rooms:', chatRoomsResponse.error);
+        } else if (chatRoomsResponse.data) {
+          setChatRooms(chatRoomsResponse.data);
         }
       }
     } catch (error) {
@@ -83,6 +121,29 @@ export default function ProfilePage() {
   const handleLogout = () => {
     logout();
     router.push('/login');
+  };
+
+  const handleCreateNewExam = async () => {
+    if (!profile) return;
+
+    try {
+      const response = await apiCall<ChatRoomResponse>(
+        `/api/v1/chatrooms/?user_id=${profile.id}`,
+        'POST',
+        { chat_name: newExamName }
+      );
+
+      if (response.error) {
+        console.error('Failed to create new chat room:', response.error);
+        // TODO: Show error message to user
+      } else if (response.data) {
+        setShowNewExamDialog(false);
+        router.push(`/chat/${profile.id}/${response.data.data.id}`);
+      }
+    } catch (error) {
+      console.error('Error creating new chat room:', error);
+      // TODO: Show error message to user
+    }
   };
 
   if (isLoading) {
@@ -96,7 +157,7 @@ export default function ProfilePage() {
         <div className="flex items-center gap-3">
           <Avatar className="h-12 w-12">
             <AvatarImage src="/placeholder.svg" alt="프로필" />
-            <AvatarFallback className='text-xl'>{profile?.username[0]}</AvatarFallback>
+            <AvatarFallback>사용자</AvatarFallback>
           </Avatar>
           <span className="text-lg font-medium">{profile?.username || '사용자 이름'}</span>
         </div>
@@ -113,10 +174,10 @@ export default function ProfilePage() {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>설정</DropdownMenuLabel>
+              <DropdownMenuLabel>내 계정</DropdownMenuLabel>
               <DropdownMenuItem>
                 <User className="mr-2 h-4 w-4" />
-                <span>내 정보 수정</span>
+                <span>프로필</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={() => setShowLogoutDialog(true)}>
@@ -147,7 +208,14 @@ export default function ProfilePage() {
         <h2 className="text-2xl font-bold">진행 중인 시험</h2>
         <div className="space-y-4">
           {ongoingExams.map((exam) => (
-            <Card key={exam.id} onClick={() => router.push('/dashboard')} className="p-6 hover:border-primary dark:hover:border-white transition-colors">
+            <Card 
+              key={exam.id} 
+              onClick={() => {
+                localStorage.setItem('selectedExam', JSON.stringify(exam));
+                router.push('/dashboard');
+              }} 
+              className="p-6 hover:border-primary dark:hover:border-white transition-colors cursor-pointer"
+            >
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="font-medium">{exam.test_name}</h3>
@@ -160,10 +228,37 @@ export default function ProfilePage() {
         </div>
       </section>
 
+      {/* Chat Rooms Section */}
+      <section className="space-y-4">
+        <h2 className="text-2xl font-bold">채팅방</h2>
+        <div className="space-y-4">
+          {chatRooms
+            .filter(room => room.testplan === null)
+            .map((room) => (
+              <Card 
+                key={room.id} 
+                onClick={() => router.push(`/chat/${profile?.id}/${room.chat_id}`)}
+                className="p-6 hover:border-primary dark:hover:border-white transition-colors cursor-pointer"
+              >
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="font-medium">{room.chat_name}</h3>
+                    <p className="text-sm text-gray-500">
+                      생성일: {new Date(room.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <Button size="sm">채팅 계속하기</Button>
+                </div>
+              </Card>
+            ))}
+        </div>
+      </section>
+
       {/* Generate New Plan Button */}
       <Button
         size="lg"
         className="w-full text-lg py-6 rounded-full"
+        onClick={() => setShowNewExamDialog(true)}
       >
         + 새로운 시험 계획 생성하기
       </Button>
@@ -172,14 +267,36 @@ export default function ProfilePage() {
       <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>정말 로그아웃할까요?</AlertDialogTitle>
+            <AlertDialogTitle>로그아웃 하시겠습니까?</AlertDialogTitle>
             <AlertDialogDescription>
-              학습 알림은 계속 받을 수 있습니다.
+              로그아웃하면 현재 세션이 종료됩니다.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>취소</AlertDialogCancel>
             <AlertDialogAction onClick={handleLogout}>로그아웃</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* New Exam Plan Dialog */}
+      <AlertDialog open={showNewExamDialog} onOpenChange={setShowNewExamDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>시험 이름을 적어주세요.</AlertDialogTitle>
+            <AlertDialogDescription>
+              <Input
+                type="text"
+                placeholder="시험 이름"
+                value={newExamName}
+                onChange={(e) => setNewExamName(e.target.value)}
+                className="mt-2"
+              />
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCreateNewExam}>확인</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

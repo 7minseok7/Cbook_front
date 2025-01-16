@@ -5,6 +5,7 @@ interface ApiResponse<T> {
   data: T | null;
   error: string | null;
   isLoading: boolean;
+  status: number;
 }
 
 export function useApi() {
@@ -43,7 +44,7 @@ export function useApi() {
     try {
       let accessToken = localStorage.getItem('accessToken');
 
-      const makeRequest = async (token: string | null) => {
+      const makeRequest = async (token: string | null): Promise<ApiResponse<T>> => {
         const response = await fetch(url, {
           method,
           headers: {
@@ -53,33 +54,51 @@ export function useApi() {
           ...(body ? { body: JSON.stringify(body) } : {}),
         });
 
-        if (!response.ok) {
-          throw new Error('API request failed');
+        if (response.status === 204) {
+          return { data: null, error: null, isLoading: false, status: 204 };
         }
 
-        return await response.json();
+        const responseData = await response.json();
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            throw new Error('Unauthorized');
+          }
+          return { data: null, error: responseData.message || 'API request failed', isLoading: false, status: response.status };
+        }
+
+        return { data: responseData, error: null, isLoading: false, status: response.status };
       };
 
       try {
-        return { data: await makeRequest(accessToken), error: null, isLoading: false };
+        const result = await makeRequest(accessToken);
+        setIsLoading(false);
+        return result;
       } catch (error) {
-        if (error instanceof Error && error.message === 'API request failed') {
+        if (error instanceof Error && error.message === 'Unauthorized') {
           // Token might be expired, try to refresh
-          accessToken = await refreshAccessToken();
-          return { data: await makeRequest(accessToken), error: null, isLoading: false };
+          try {
+            accessToken = await refreshAccessToken();
+            const result = await makeRequest(accessToken);
+            setIsLoading(false);
+            return result;
+          } catch (refreshError) {
+            if (refreshError instanceof Error && refreshError.message === 'Failed to refresh token') {
+              logout();
+              setIsLoading(false);
+              return { data: null, error: 'Authentication failed. Please log in again.', isLoading: false, status: 401 };
+            }
+            throw refreshError;
+          }
         }
         throw error;
       }
     } catch (error) {
-      if (error instanceof Error) {
-        if (error.message === 'Failed to refresh token') {
-          logout();
-        }
-        return { data: null, error: error.message, isLoading: false };
-      }
-      return { data: null, error: 'An unknown error occurred', isLoading: false };
-    } finally {
       setIsLoading(false);
+      if (error instanceof Error) {
+        return { data: null, error: error.message, isLoading: false, status: 500 };
+      }
+      return { data: null, error: 'An unknown error occurred', isLoading: false, status: 500 };
     }
   }, [logout]);
 
