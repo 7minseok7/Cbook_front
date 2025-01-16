@@ -1,19 +1,27 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+
 interface StudyPlanCardProps {
-    title: string
-    date: string
-    daysRemaining: number
-  }
-  
-  export function StudyPlanCard({ title, date, daysRemaining }: StudyPlanCardProps) {
-    return (
-      <div className="bg-card rounded-xl p-4 flex border justify-between items-center">
-        <div>
-          <div className="font-medium">{title}</div>
-          <div>{date}</div>
-        </div>
-        <div className="text-lg font-medium">
-          {daysRemaining}일 남음
-        </div>
-      </div>
-    )
-  }
+  title: string
+  date: string
+  daysRemaining: number
+  tasks: string[]
+}
+
+export function StudyPlanCard({ title, date, daysRemaining, tasks }: StudyPlanCardProps) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p>날짜: {date}</p>
+        <p>남은 일수: {daysRemaining}일</p>
+        <ul className="list-disc list-inside mt-2">
+          {tasks.map((task, index) => (
+            <li key={index}>{task}</li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
+  )
+}

@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { StudyPlanCard } from "@/components/study-plan-card"
 import { calculateDaysRemaining, formatDate } from "@/utils/date"
 
 interface StudyPlan {
@@ -41,11 +40,7 @@ export default function PlanPreviewPage() {
   if (error) {
     return (
       <div className="container max-w-2xl mx-auto p-4 space-y-6">
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-center text-red-500">{error}</p>
-          </CardContent>
-        </Card>
+        <div className="text-center text-red-500">{error}</div>
         <Button className="w-full py-6" onClick={() => window.history.back()}>
           이전 화면으로 돌아가기
         </Button>
@@ -56,51 +51,69 @@ export default function PlanPreviewPage() {
   if (!studyPlan) {
     return (
       <div className="container max-w-2xl mx-auto p-4 space-y-6">
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-center">학습 계획을 불러오는 중...</p>
-          </CardContent>
-        </Card>
+        <div className="text-center">학습 계획을 불러오는 중...</div>
       </div>
     );
   }
 
+  const formatDateString = (dateString: string) => {
+    const year = dateString.slice(0, 4);
+    const month = dateString.slice(4, 6);
+    const day = dateString.slice(6, 8);
+    return `${year}-${month}-${day}`;
+  };
+
+  const formattedToday = formatDateString(studyPlan.today);
+  const formattedTestDay = formatDateString(studyPlan.test_day);
+
   return (
     <div className="container max-w-2xl mx-auto p-4 space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>{studyPlan.book_title}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span>시험 날짜:</span>
-              <span>{formatDate(studyPlan.test_day)} ({calculateDaysRemaining(studyPlan.test_day, studyPlan.today)}일 남음)</span>
-            </div>
-            <div className="flex justify-between">
-              <span>오늘 날짜:</span>
-              <span>{formatDate(studyPlan.today)}</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold">{studyPlan.book_title}</h1>
+        <p className="text-sm">공부 계획 미리보기</p>
+      </div>
 
-      <Accordion type="single" collapsible className="w-full">
-        {Object.entries(studyPlan.total_plan).map(([week, tasks], index) => (
-          <AccordionItem key={week} value={`item-${index}`}>
-            <AccordionTrigger>{week}</AccordionTrigger>
-            <AccordionContent>
-              <ul className="list-disc list-inside">
-                {tasks.map((task, taskIndex) => (
-                  <li key={taskIndex}>{task}</li>
-                ))}
-              </ul>
-            </AccordionContent>
-          </AccordionItem>
-        ))}
-      </Accordion>
+      {/* Study Start Date */}
+      <div className="flex justify-between items-center">
+        <div className="text-xl font-bold">공부 시작일</div>
+        <div>{formatDate(formattedToday)}</div>
+      </div>
+      
+      <div className="flex justify-between items-center">
+        <div className="text-xl font-bold">시험 날짜</div>
+        <div>{formatDate(formattedTestDay)} ({
+        calculateDaysRemaining(
+          formattedTestDay,
+          formattedToday
+        )}일 남음)</div>
+      </div>
+      <hr />
 
-      <Button className="w-full py-6" onClick={() => window.history.back()}>
+      {/* Study Plan Section */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold">학습 계획</h2>
+        <div className="space-y-4">
+          {Object.entries(studyPlan.total_plan).map(([week, tasks], index) => (
+            <StudyPlanCard
+              key={index}
+              title={week}
+              date={formatDate(formattedToday)}
+              daysRemaining={calculateDaysRemaining(
+                formattedTestDay,
+                formattedToday
+              )}
+              tasks={tasks}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Navigation Button */}
+      <Button 
+        className="w-full py-6"
+        onClick={() => window.history.back()}
+      >
         이전 화면으로 돌아가기
       </Button>
     </div>
