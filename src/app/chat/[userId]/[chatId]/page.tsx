@@ -37,7 +37,6 @@ interface BookSearchResult {
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isTyping, setIsTyping] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const { apiCall } = useApi()
   const { checkAuth } = useAuth()
   const params = useParams()
@@ -65,7 +64,7 @@ export default function ChatPage() {
       setMessages([])
     } else if (error) {
       console.error('Failed to fetch messages:', error)
-      setError('메시지를 불러오는데 실패했습니다. 다시 시도해주세요.')
+      // setError('메시지를 불러오는데 실패했습니다. 다시 시도해주세요.')
     } else if (Array.isArray(data)) {
       const sortedMessages = data.sort((a, b) => new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime())
       setMessages(sortedMessages)
@@ -101,7 +100,7 @@ export default function ChatPage() {
 
       if (error) {
         console.error('Failed to send message:', error)
-        setError('메시지 전송에 실패했습니다. 다시 시도해주세요.')
+        // setError('메시지 전송에 실패했습니다. 다시 시도해주세요.')
       } else if (data) {
         const newAiMessage: ChatMessage = {
           id: Date.now() + 1,
@@ -119,7 +118,7 @@ export default function ChatPage() {
       }
     } catch (error) {
       console.error('Error sending message:', error)
-      setError('메시지 전송 중 오류가 발생했습니다. 다시 시도해주세요.')
+      // setError('메시지 전송 중 오류가 발생했습니다. 다시 시도해주세요.')
     } finally {
       setIsTyping(false)
     }
@@ -156,7 +155,7 @@ export default function ChatPage() {
               key={message.id}
               isUser={false}
               plan={true}
-              content={aiResponse.content as string}
+              content={JSON.stringify(aiResponse.content)}
               userName="계획을 세움"
             />
           );
@@ -221,12 +220,6 @@ export default function ChatPage() {
 
       <main className="flex-1 flex flex-col">
         <div className="flex-1 overflow-y-auto">
-          {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-              <strong className="font-bold">오류:</strong>
-              <span className="block sm:inline"> {error}</span>
-            </div>
-          )}
           {messages.length === 0 && (
             <div className="text-center py-4 text-gray-500">
               아직 대화가 시작되지 않았습니다. 첫 메시지를 보내보세요!

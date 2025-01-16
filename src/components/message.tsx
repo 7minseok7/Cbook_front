@@ -1,6 +1,7 @@
 import React from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
+import Link from 'next/link'
 
 interface MessageProps {
   isUser: boolean
@@ -17,25 +18,26 @@ export function Message({ isUser, plan, content, userName, children }: MessagePr
     }
 
     if (plan) {
-      const planData = content.match(/<시작>([\s\S]*?)<분할>([\s\S]*?)<분할>([\s\S]*?)<끝>/)
-      if (planData) {
-        const [, date, place, tasks] = planData
-        const taskList = tasks.split('|').map(task => {
-          const [taskDate, taskContent] = task.split(',')
-          return `${taskDate}: ${taskContent}`
-        }).join('\n')
+      try {
+        const planData = JSON.parse(content);
+        const { book_title, test_day, total_plan } = planData;
+        
+        // Store the plan data in localStorage
+        localStorage.setItem('studyPlan', JSON.stringify(planData));
 
         return (
           <div>
-            <p>시험 날짜: {date}</p>
-            <p>시험 장소: {place}</p>
-            <p>학습 계획:</p>
-            <pre>{taskList}</pre>
+            <p>시험 날짜: {test_day}</p>
+            <p>책 제목: {book_title}</p>
+            <p>학습 계획이 생성되었습니다. 아래 버튼을 클릭하여 자세히 볼 수 있습니다.</p>
           </div>
-        )
+        );
+      } catch (error) {
+        console.error("Error parsing plan data:", error);
+        return <p>계획 데이터를 표시하는 중 오류가 발생했습니다.</p>;
       }
     }
-    return content
+    return content;
   }
 
   return (
@@ -58,14 +60,14 @@ export function Message({ isUser, plan, content, userName, children }: MessagePr
               {renderContent()}
             </div>
             {plan && (
-              <a href="/plan-preview">
+              <Link href="/plan-preview">
                 <Button 
                   variant="secondary"
                   className="w-full my-2 py-6"
                 >
                   시험 계획 미리보기
                 </Button>
-              </a>
+              </Link>
             )}
           </div>
         </div>
