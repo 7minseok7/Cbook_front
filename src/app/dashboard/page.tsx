@@ -19,6 +19,7 @@ import { ProgressDot } from '@/components/progress-dot'
 import { MessageCircle } from 'lucide-react'
 
 import { ModeToggle } from "@/components/theme-toggle";
+import { calculateDaysRemaining, formatDate } from '@/utils/date';
 
 function CircularProgress({ value }: { value: number }) {
   const radius = 60;
@@ -98,10 +99,8 @@ export default function Page() {
         setExamData(parsedExamData);
         
         // Calculate days remaining
-        const examDate = new Date(parsedExamData.test_date);
-        const today = new Date();
-        const timeDiff = examDate.getTime() - today.getTime();
-        const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+        const formattedTestDate = formatDate(parsedExamData.test_date);
+        const daysDiff = calculateDaysRemaining(formattedTestDate, new Date().toISOString());
         setDaysRemaining(daysDiff);
       }
     }

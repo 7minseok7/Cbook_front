@@ -60,6 +60,9 @@ export default function ChatPage() {
     }
 
     fetchMessages()
+    // URL 정보를 로컬 스토리지에 저장
+    localStorage.setItem('chatUrl', window.location.pathname)
+    
   }, [chatId, userId, apiCall, checkAuth, router])
 
   useEffect(() => {
@@ -67,7 +70,7 @@ export default function ChatPage() {
   }, [messages])
 
   const fetchMessages = async () => {
-    const { data, error, status } = await apiCall<ChatMessage[] | { message: string }>(`/api/v1/chatrooms/${userId}/?chat_id=${chatId}`)
+    const { data, error, status } = await apiCall<ChatMessage[] | { message: string }>(`/api/v1/chatrooms/${userId}/?chatroom_id=${chatId}`)
     if (status === 204 || (data && 'message' in data && data.message === "아직 대화가 시작되지 않았습니다.")) {
       setMessages([])
     } else if (error) {
@@ -103,7 +106,7 @@ export default function ChatPage() {
         message: string;
         user_msg: string;
         ai_response: AIResponse;
-      }>(`/api/v1/chatrooms/${userId}/?chat_id=${chatId}`, 'POST', { user_msg: content })
+      }>(`/api/v1/chatrooms/${userId}/?chatroom_id=${chatId}`, 'POST', { user_msg: content })
 
       if (error) {
         console.error('Failed to send message:', error)
@@ -133,13 +136,13 @@ export default function ChatPage() {
     if (message.sent_by === 'ai') {
       try {
         let aiResponse;
-
+        
         try {
           aiResponse = JSON.parse(message.message_content);
         } catch (error) {
           aiResponse = { action: message.action, content: message.message_content };
         }
-
+        
         if (aiResponse.action === 'search_books') {
           return (
             <Message
@@ -208,8 +211,8 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="border-b">
+    <div className="flex flex-col h-screen">
+      <header className="sticky top-0 bg-background z-10 border-b">
         <div className="container max-w-4xl mx-auto p-4">
           <div className="flex items-center justify-between relative">
             <button 
@@ -226,8 +229,8 @@ export default function ChatPage() {
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col">
-        <div className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto">
+        <div className="container max-w-4xl mx-auto p-4">
           {messages.length === 0 && (
             <div className="text-center py-4 text-gray-500">
               아직 대화가 시작되지 않았습니다. 첫 메시지를 보내보세요!
@@ -236,11 +239,13 @@ export default function ChatPage() {
           {messages.map(renderMessage)}
           <div ref={messagesEndRef} />
         </div>
-        
-        <div className="border-t">
+      </main>
+      
+      <div className="sticky bottom-0 bg-background z-10 border-t">
+        <div className="container max-w-4xl mx-auto p-4">
           <MessageInput onSendMessage={handleSendMessage} disabled={isTyping} />
         </div>
-      </main>
+      </div>
     </div>
   )
 }

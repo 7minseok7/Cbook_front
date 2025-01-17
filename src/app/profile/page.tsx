@@ -28,6 +28,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
+import { formatDate } from '@/utils/date';
 import { ModeToggle } from "@/components/theme-toggle";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -155,7 +156,13 @@ export default function ProfilePage() {
   };
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="container max-w-2xl mx-auto p-4 space-y-8">
+        <Skeleton className="w-full h-24 p-6" />
+        <Skeleton className="w-full h-24 p-6" />
+        <Skeleton className="w-full h-24 p-6" />
+      </div>
+    );
   }
 
   return (
@@ -233,7 +240,7 @@ export default function ProfilePage() {
                       <h3 className="font-medium">{exam.test_name}</h3>
                       <p className="mt-1">{exam.test_place}</p>
                     </div>
-                    <span>{exam.test_date}</span>
+                    <span>{formatDate(exam.test_date)}</span>
                   </div>
                 </Card>
               ))) : (
@@ -310,11 +317,11 @@ export default function ProfilePage() {
       <AlertDialog open={showNewExamDialog} onOpenChange={setShowNewExamDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>시험 이름을 적어주세요.</AlertDialogTitle>
+            <AlertDialogTitle>채팅방 이름을 적어주세요.</AlertDialogTitle>
             <AlertDialogDescription>
               <Input
                 type="text"
-                placeholder="시험 이름"
+                placeholder="채팅 이름"
                 value={newExamName}
                 onChange={(e) => setNewExamName(e.target.value)}
                 className="mt-2"

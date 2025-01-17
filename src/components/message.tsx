@@ -21,10 +21,10 @@ export function Message({ isUser, plan, content, userName, children }: MessagePr
       try {
         const planData = JSON.parse(content);
         const { book_title, test_day, total_plan } = planData;
-        
+
         return (
           <div>
-            <p>시험 날짜: {test_day}</p>
+            <p>시험 날짜: {test_day.substring(0, 4)}-{test_day.substring(4, 6)}-{test_day.substring(6, 8)}</p>
             <p>책 제목: {book_title}</p>
             <p>학습 계획이 생성되었습니다. 아래 버튼을 클릭하여 자세히 볼 수 있습니다.</p>
           </div>
