@@ -89,7 +89,7 @@ export default function PlanPreviewPage() {
 
     try {
       const { data, error, status } = await apiCall<{ message: string }>(
-        `/api/v1/testplans/${userId}/`,
+        `/api/v1/testplans/?user_id=${userId}&chatroom_id=${chatId}`,
         'POST',
         payload
       );

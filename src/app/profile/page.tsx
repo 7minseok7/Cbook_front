@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bell, Settings, LogOut, User } from 'lucide-react'
+import { Bell, Settings, LogOut, User, Trash2, MoreHorizontal } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 
 import { formatDate } from '@/utils/date';
 import { ModeToggle } from "@/components/theme-toggle";
@@ -34,6 +39,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 interface OngoingExam {
   id: number;
+  ctrm_id: number;
   title: string;
   daysRemaining: number;
   examDate: string;
@@ -45,7 +51,6 @@ interface OngoingExam {
 interface UserProfile {
   id: number;
   username: string;
-  // Add other profile fields as needed
 }
 
 interface ChatRoom {
@@ -83,6 +88,10 @@ export default function ProfilePage() {
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
   const [isLoadingExams, setIsLoadingExams] = useState(true);
   const [isLoadingChatRooms, setIsLoadingChatRooms] = useState(true);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deletingItem, setDeletingItem] = useState<OngoingExam | ChatRoom | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteMessage, setDeleteMessage] = useState('');
 
   useEffect(() => {
     if (!checkAuth()) {
@@ -101,7 +110,6 @@ export default function ProfilePage() {
       } else if (profileResponse.data) {
         setProfile(profileResponse.data);
 
-        // 병렬로 API 호출
         const [examsResponse, chatRoomsResponse] = await Promise.all([
           apiCall<OngoingExam[]>(`/api/v1/testplans/?user_id=${profileResponse.data.id}`),
           apiCall<ChatRoom[]>(`/api/v1/chatrooms/?user_id=${profileResponse.data.id}`)
@@ -144,23 +152,91 @@ export default function ProfilePage() {
 
       if (response.error) {
         console.error('Failed to create new chat room:', response.error);
-        // TODO: Show error message to user
       } else if (response.data) {
         setShowNewExamDialog(false);
         router.push(`/chat/${profile.id}/${response.data.data.chat_id}`);
       }
     } catch (error) {
       console.error('Error creating new chat room:', error);
-      // TODO: Show error message to user
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!profile || !deletingItem) return;
+
+    setIsDeleting(true);
+    setDeleteMessage('');
+
+    try {
+      const deleteId = 'test_name' in deletingItem ? deletingItem.ctrm_id : deletingItem.chat_id;
+      const response = await apiCall<{ message: string }>(
+        `/api/v1/chatrooms/?user_id=${profile.id}&chat_id=${deleteId}`,
+        'DELETE'
+      );
+
+      if (response.error) {
+        console.error('Failed to delete item:', response.error);
+        setDeleteMessage('삭제에 실패했습니다. 다시 시도해 주세요.');
+      } else if (response.data) {
+        setDeleteMessage(response.data.message);
+        if ('test_name' in deletingItem) {
+          setOngoingExams(ongoingExams.filter(exam => exam.id !== deletingItem.id));
+        } else {
+          setChatRooms(chatRooms.filter(room => room.id !== deletingItem.id));
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      setDeleteMessage('삭제 중 오류가 발생했습니다. 다시 시도해 주세요.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   if (isLoading) {
     return (
       <div className="container max-w-2xl mx-auto p-4 space-y-8">
-        <Skeleton className="w-full h-24 p-6" />
-        <Skeleton className="w-full h-24 p-6" />
-        <Skeleton className="w-full h-24 p-6" />
+        {/* Header Skeleton */}
+        <header className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-12 w-12 rounded-full" />
+            <Skeleton className="h-6 w-32" />
+          </div>
+          <div className="flex items-center gap-4">
+            <Skeleton className="h-8 w-8 rounded-full" />
+            <Skeleton className="h-8 w-8 rounded-full" />
+            <Skeleton className="h-8 w-8 rounded-full" />
+          </div>
+        </header>
+
+        {/* Achievements Section Skeleton */}
+        <section className="space-y-4">
+          <Skeleton className="h-8 w-40" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[1, 2].map((i) => (
+              <Skeleton key={i} className="h-32 w-full rounded-lg" />
+            ))}
+          </div>
+        </section>
+
+        {/* Ongoing Exams Section Skeleton */}
+        <section className="space-y-4">
+          <Skeleton className="h-8 w-48" />
+          <div className="space-y-4">
+            <Skeleton className="h-24 w-full rounded-lg" />
+          </div>
+        </section>
+
+        {/* Chat Rooms Section Skeleton */}
+        <section className="space-y-4">
+          <Skeleton className="h-8 w-48" />
+          <div className="space-y-4">
+            <Skeleton className="h-24 w-full rounded-lg" />
+          </div>
+        </section>
+
+        {/* Generate New Plan Button Skeleton */}
+        <Skeleton className="h-14 w-full rounded-full" />
       </div>
     );
   }
@@ -223,31 +299,55 @@ export default function ProfilePage() {
         <h2 className="text-2xl font-bold">진행 중인 시험</h2>
         <div className="space-y-4">
           {isLoadingExams ? (
-            <Skeleton className="w-full h-24 p-6" />
-            ) : (
+            <Skeleton className="h-24 w-full rounded-lg" />
+          ) : (
             ongoingExams.length > 0 ? (
               ongoingExams.map((exam) => (
-                <Card 
-                  key={exam.id} 
-                  onClick={() => {
-                    localStorage.setItem('selectedExam', JSON.stringify(exam));
-                    router.push('/dashboard');
-                  }} 
-                  className="p-6 hover:border-primary dark:hover:border-white transition-colors cursor-pointer"
+                <Card
+                  key={exam.id}
+                  className="p-6 hover:border-primary dark:hover:border-white transition-colors cursor-pointer relative group"
                 >
-                  <div className="flex justify-between items-start">
+                  <div
+                    onClick={() => {
+                      localStorage.setItem('selectedExam', JSON.stringify(exam));
+                      router.push('/dashboard');
+                    }}
+                    className="flex justify-between items-start"
+                  >
                     <div>
                       <h3 className="font-medium">{exam.test_name}</h3>
                       <p className="mt-1">{exam.test_place}</p>
                     </div>
                     <span>{formatDate(exam.test_date)}</span>
                   </div>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        className="absolute top-2 right-2 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start" side="right">
+                      <button
+                        onClick={() => {
+                          setDeletingItem(exam);
+                          setShowDeleteDialog(true);
+                        }}
+                        className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-100 hover:rounded-md w-full"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        <span>삭제하기</span>
+                      </button>
+                    </PopoverContent>
+                  </Popover>
                 </Card>
-              ))) : (
-                <Card className="w-full h-24 p-6 flex justify-center items-center">
-                  진행 중인 시험이 없습니다
-                </Card>
-              )
+              ))
+            ) : (
+              <Card className="w-full h-24 p-6 flex justify-center items-center">
+                진행 중인 시험이 없습니다
+              </Card>
+            )
           )}
         </div>
       </section>
@@ -257,28 +357,50 @@ export default function ProfilePage() {
         <h2 className="text-2xl font-bold">채팅 계속하기</h2>
         <div className="space-y-4">
           {isLoadingChatRooms ? (
-            <Skeleton className="w-full h-24 p-6" />
+              <Skeleton className="h-24 w-full rounded-lg" />
           ) : (
             chatRooms.length > 0 ? (
-              
               chatRooms
-              .filter(room => room.testplan === null)
-              .map((room) => (
-                <Card 
-                key={room.id} 
-                className="p-6 transition-colors"
-                >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="font-medium">{room.chat_name}</h3>
-                      <p className="text-sm text-gray-500">
-                        생성일: {new Date(room.created_at).toLocaleDateString()}
-                      </p>
+                .filter(room => room.testplan === null)
+                .map((room) => (
+                  <Card
+                    key={room.id}
+                    className="p-6 transition-colors"
+                  >
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h3 className="font-medium">{room.chat_name}</h3>
+                        <p className="text-sm text-gray-500">
+                          생성일: {new Date(room.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button onClick={() => router.push(`/chat/${profile?.id}/${room.chat_id}`)} size="sm">
+                          채팅 계속하기
+                        </Button>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start" side="right">
+                            <button
+                              onClick={() => {
+                                setDeletingItem(room);
+                                setShowDeleteDialog(true);
+                              }}
+                              className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-100 w-full"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              <span>삭제하기</span>
+                            </button>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
                     </div>
-                    <Button onClick={() => router.push(`/chat/${profile?.id}/${room.chat_id}`)} size="sm">채팅 계속하기</Button>
-                  </div>
-                </Card>
-              ))
+                  </Card>
+                ))
             ) : (
               <Card className="w-full h-24 p-6 flex justify-center items-center">
                 현재 활성화된 채팅이 없습니다
@@ -334,6 +456,36 @@ export default function ProfilePage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {deletingItem && 'test_name' in deletingItem ? '시험을 삭제하시겠습니까?' : '채팅방을 삭제하시겠습니까?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              이 작업은 되돌릴 수 없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            {isDeleting ? (
+              <p>삭제 중...</p>
+            ) : deleteMessage ? (
+              <>
+                <p>{deleteMessage}</p>
+                <AlertDialogAction onClick={() => setShowDeleteDialog(false)}>확인</AlertDialogAction>
+              </>
+            ) : (
+              <>
+                <AlertDialogCancel>취소</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete}>삭제</AlertDialogAction>
+              </>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
+
