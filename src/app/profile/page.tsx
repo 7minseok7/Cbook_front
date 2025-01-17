@@ -103,7 +103,7 @@ export default function ProfilePage() {
 
         // 병렬로 API 호출
         const [examsResponse, chatRoomsResponse] = await Promise.all([
-          apiCall<OngoingExam[]>(`/api/v1/testplans/${profileResponse.data.id}/`),
+          apiCall<OngoingExam[]>(`/api/v1/testplans/?user_id=${profileResponse.data.id}`),
           apiCall<ChatRoom[]>(`/api/v1/chatrooms/?user_id=${profileResponse.data.id}`)
         ]);
 

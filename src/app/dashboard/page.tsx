@@ -69,6 +69,7 @@ function CircularProgress({ value }: { value: number }) {
 interface ExamData {
   id: number;
   plan_id: number;
+  ctrm_id: number;
   test_name: string;
   test_date: string;
   test_place: string;
@@ -126,7 +127,7 @@ export default function Page() {
         <div className="flex items-center gap-4 text-right">
           <ModeToggle />
           <button>
-            <MessageCircle onClick={() => router.push(`/chat/${examData?.user_id}/${examData?.chatroom}`)} className="relative h-6 w-6"/>
+            <MessageCircle onClick={() => router.push(`/chat/${examData?.user_id}/${examData?.ctrm_id}`)} className="relative h-6 w-6"/>
           </button>
           
           <div>

@@ -94,7 +94,7 @@ export function SignupStep({ values, onChange, onNext }: SignupStepProps) {
         onClick={onNext}
         disabled={!isValid}
       >
-        회원가입
+        다음
       </Button>
     </div>
   )

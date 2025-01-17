@@ -1,14 +1,14 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from 'next/navigation'
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { SignupStep } from "@/components/survey-steps/signup-step"
-import { WelcomeStep } from "@/components/survey-steps/welcome-step"
-import { ExamStep } from "@/components/survey-steps/exam-step"
-import { YesNoStep } from "@/components/survey-steps/yesno-step"
-import { GenderStep } from "@/components/survey-steps/gender-step"
-import { EducationStep } from "@/components/survey-steps/education-step"
+import { EmailStep } from "@/components/survey-steps/email-step"
+import { SlackStep } from "@/components/survey-steps/slack-step"
+import { SuccessStep } from "@/components/survey-steps/success-step"
+import { useApi } from "@/hooks/useApi"
 
 export default function RegisterPage() {
   const [step, setStep] = useState(1)
@@ -16,15 +16,12 @@ export default function RegisterPage() {
     username: "",
     password: "",
     passwordConfirm: "",
-    exam: "",
-    gender: "",
-    education: {
-      school: "",
-      status: ""
-    }
+    email: ""
   })
+  const router = useRouter()
+  const { apiCall } = useApi()
 
-  const handleSignupChange = (field: string, value: string) => {
+  const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
@@ -32,17 +29,37 @@ export default function RegisterPage() {
     setStep(prev => prev + 1)
   }
 
-  const handleFinish = () => {
-    // Here you would typically submit the form data to your backend
-    console.log("Form submitted:", formData)
+  const handleSubmit = async () => {
+    try {
+      const { data, error } = await apiCall<{ message: string }>(
+        '/api/v1/accounts/',
+        'POST',
+        {
+          username: formData.username,
+          password: formData.password,
+          password2: formData.passwordConfirm,
+          email: formData.email
+        }
+      )
+
+      if (error) {
+        console.error('회원가입 실패:', error)
+        // 에러 처리 로직 추가
+      } else if (data) {
+        handleNext() // 성공 화면으로 이동
+      }
+    } catch (error) {
+      console.error('회원가입 중 오류 발생:', error)
+      // 에러 처리 로직 추가
+    }
   }
 
   return (
     <div className="min-h-screen py-12 px-4">
       <Card className="max-w-md mx-auto p-6 space-y-6">
-        <Progress value={step * 100 / 6} className="h-2" />
+        <Progress value={step * 100 / 4} className="h-2" />
         <div className="text-sm text-center">
-            {step} / {6}
+          {step} / {4}
         </div>
 
         {step === 1 && (
@@ -52,60 +69,32 @@ export default function RegisterPage() {
               password: formData.password,
               passwordConfirm: formData.passwordConfirm
             }}
-            onChange={handleSignupChange}
+            onChange={handleChange}
             onNext={handleNext}
           />
         )}
 
         {step === 2 && (
-          <WelcomeStep onNext={handleNext} />
+          <EmailStep
+            value={formData.email}
+            onChange={(value) => handleChange("email", value)}
+            onNext={handleNext}
+          />
         )}
 
         {step === 3 && (
-          <YesNoStep
-            value={formData.gender}
-            onChange={(value) => setFormData(prev => ({ ...prev, gender: value }))}
-            onNext={handleNext}
+          <SlackStep
+            email={formData.email}
+            onSubmit={handleSubmit}
           />
         )}
 
         {step === 4 && (
-          <ExamStep
-            value={formData.exam}
-            onChange={(value) => setFormData(prev => ({ ...prev, exam: value }))}
-            onNext={handleNext}
-          />
-        )}
-
-        {step === 5 && (
-          <GenderStep
-            value={formData.gender}
-            onChange={(value) => setFormData(prev => ({ ...prev, gender: value }))}
-            onNext={handleNext}
-          />
-        )}
-
-        {step === 6 && (
-          <EducationStep
-            school={formData.education.school}
-            status={formData.education.status}
-            onSchoolChange={(value) => 
-              setFormData(prev => ({
-                ...prev,
-                education: { ...prev.education, school: value }
-              }))
-            }
-            onStatusChange={(value) =>
-              setFormData(prev => ({
-                ...prev,
-                education: { ...prev.education, status: value }
-              }))
-            }
-            onFinish={handleFinish}
+          <SuccessStep
+            onLogin={() => router.push('/login')}
           />
         )}
       </Card>
     </div>
   )
 }
-

@@ -1,35 +1,45 @@
+"use client"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-interface ExamStepProps {
+interface EmailStepProps {
   value: string
   onChange: (value: string) => void
   onNext: () => void
 }
 
-export function ExamStep({ value, onChange, onNext }: ExamStepProps) {
+export function EmailStep({ value, onChange, onNext }: EmailStepProps) {
+  const isValidEmail = (email: string) => {
+    const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+    return re.test(email)
+  }
+
+  const isValid = isValidEmail(value)
+
   return (
     <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold text-center">
-          최근에 준비해 보셨던 시험은<br />어떤 것이었나요?
-        </h1>
+      <h1 className="text-2xl font-semibold text-center">이메일 입력</h1>
+      
+      <div className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="exam">시험명 (가장 최근에 준비한 시험 하나만 입력)</Label>
+          <Label htmlFor="email">이메일</Label>
           <Input
+            id="email"
+            type="email"
             className="bg-background border-None"
-            id="exam"
-            placeholder="ex) 빅데이터분석기사, SQLD 등"
+            placeholder="example@email.com"
             value={value}
             onChange={(e) => onChange(e.target.value)}
           />
         </div>
       </div>
+
       <Button 
         className="w-full py-6 text-lg"
         onClick={onNext}
-        disabled={!value.trim()}
+        disabled={!isValid}
       >
         다음
       </Button>
