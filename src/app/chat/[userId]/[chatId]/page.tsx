@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { BookSearchResult } from "@/components/book-search-result"
 import { TypingEffect } from "@/components/typing-effect"
 import { ModeToggle } from "@/components/theme-toggle"
+import { LoadingMessage } from "@/components/loading-message"
 
 interface ChatMessage {
   id: number;
@@ -45,6 +46,7 @@ function cleanJsonString(originalString: string) {
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isTyping, setIsTyping] = useState(false)
+  const [loadingMessageId, setLoadingMessageId] = useState<number | null>(null)
   const { apiCall } = useApi()
   const { checkAuth } = useAuth()
   const params = useParams()
@@ -98,8 +100,18 @@ export default function ChatPage() {
       user_id: parseInt(userId)
     }
 
-    setMessages(prev => [...prev, newUserMessage])
-    setIsTyping(true)
+    const loadingMessageId = Date.now() + 1
+    setMessages(prev => [...prev, newUserMessage, {
+      id: loadingMessageId,
+      message_id: loadingMessageId,
+      message_content: "",
+      action: "loading",
+      sent_by: 'ai',
+      sent_at: new Date().toISOString(),
+      chat_id: parseInt(chatId),
+      user_id: parseInt(userId)
+    }])
+    setLoadingMessageId(loadingMessageId)
 
     try {
       const { data, error } = await apiCall<{
@@ -112,8 +124,8 @@ export default function ChatPage() {
         console.error('Failed to send message:', error)
       } else if (data) {
         const newAiMessage: ChatMessage = {
-          id: Date.now() + 1,
-          message_id: Date.now() + 1,
+          id: loadingMessageId,
+          message_id: loadingMessageId,
           message_content: JSON.stringify(data.ai_response),
           action: data.ai_response.action,
           sent_by: 'ai',
@@ -122,18 +134,21 @@ export default function ChatPage() {
           user_id: parseInt(userId)
         }
 
-        setMessages(prev => [...prev, newAiMessage])
-        setIsTyping(false)
+        setMessages(prev => prev.map(msg => msg.id === loadingMessageId ? newAiMessage : msg))
       }
     } catch (error) {
       console.error('Error sending message:', error)
     } finally {
-      setIsTyping(false)
+      setLoadingMessageId(null)
     }
   }
 
   const renderMessage = (message: ChatMessage) => {
     if (message.sent_by === 'ai') {
+      if (message.action === 'loading') {
+        return <LoadingMessage key={message.id} />
+      }
+
       try {
         let aiResponse;
         
