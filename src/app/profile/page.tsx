@@ -378,25 +378,12 @@ export default function ProfilePage() {
                         <Button onClick={() => router.push(`/chat/${profile?.id}/${room.chat_id}`)} size="sm">
                           채팅 계속하기
                         </Button>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start" side="right">
-                            <button
-                              onClick={() => {
+                        <Button variant={"destructive"} onClick={() => {
                                 setDeletingItem(room);
                                 setShowDeleteDialog(true);
-                              }}
-                              className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-100 w-full"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              <span>삭제하기</span>
-                            </button>
-                          </PopoverContent>
-                        </Popover>
+                              }} size="sm">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   </Card>
@@ -479,7 +466,7 @@ export default function ProfilePage() {
             ) : (
               <>
                 <AlertDialogCancel>취소</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete}>삭제</AlertDialogAction>
+                <AlertDialogAction className="hover:bg-destructive/80 bg-destructive" onClick={handleDelete}>삭제</AlertDialogAction>
               </>
             )}
           </AlertDialogFooter>
