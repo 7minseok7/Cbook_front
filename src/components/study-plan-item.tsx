@@ -15,7 +15,6 @@ export function StudyPlanItem({ id, task }: StudyPlanItemProps) {
     setNodeRef,
     transform,
     transition,
-    isDragging,
   } = useSortable({ id })
 
   const style = {
@@ -29,9 +28,7 @@ export function StudyPlanItem({ id, task }: StudyPlanItemProps) {
       style={style}
       {...attributes}
       {...listeners}
-      className={`flex items-center py-2 px-4 bg-gray-50 rounded-md mb-2 ml-6 cursor-grab ${
-        isDragging ? 'z-10' : ''
-      }`}
+      className={`flex items-center bg-secondary py-2 px-4 rounded-md mb-2 mx-8 cursor-grab `}
     >
       <span className="mr-2 text-gray-500">○</span>
       {task}

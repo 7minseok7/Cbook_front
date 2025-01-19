@@ -39,6 +39,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 interface OngoingExam {
   id: number;
+  plan_id: number;
   ctrm_id: number;
   title: string;
   daysRemaining: number;
@@ -309,7 +310,7 @@ export default function ProfilePage() {
                 >
                   <div
                     onClick={() => {
-                      localStorage.setItem('selectedExam', JSON.stringify(exam));
+                      localStorage.setItem('selectedExamId', `${profile?.id}:${exam.plan_id}`);
                       router.push('/dashboard');
                     }}
                     className="flex justify-between items-start"

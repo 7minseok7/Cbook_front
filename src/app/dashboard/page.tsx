@@ -106,29 +106,49 @@ export default function Page() {
     if (!auth) {
       router.push('/login');
     } else {
-      // Retrieve the selected exam data from localStorage
-      const storedExamData = localStorage.getItem('selectedExam');
-      if (storedExamData) {
-        const parsedExamData: ExamData = JSON.parse(storedExamData);
-        setExamData(parsedExamData);
-        
-        // Calculate days remaining
-        const formattedTestDate = formatDate(parsedExamData.test_date);
-        const daysDiff = calculateDaysRemaining(formattedTestDate, new Date().toISOString());
-        setDaysRemaining(daysDiff);
-
-        // Calculate progress rate
-        const totalTasks = Object.values(parsedExamData.test_plan.total_plan).flat().length;
-        const completedTasks = Object.values(parsedExamData.test_plan.total_plan).flat().filter(task => task.is_done).length;
-        const rate = Math.round((completedTasks / totalTasks) * 100);
-        setProgressRate(rate);
-
-        // Set initial current week
-        const weeks = Object.keys(parsedExamData.test_plan.total_plan);
-        setCurrentWeek(weeks[0]);
-      }
+      fetchExamData();
     }
   }, []);
+
+  const fetchExamData = async () => {
+    setIsLoading(true);
+    try {
+      const storedExamId = localStorage.getItem('selectedExamId');
+      if (!storedExamId) {
+        throw new Error('No exam selected');
+      }
+      const [userId, planId] = storedExamId.split(':');
+      const { data, error, status } = await apiCall<ExamData>(
+        `/api/v1/testplans/?user_id=${userId}&plan_id=${planId}`,
+        'GET'
+      );
+      if (status === 200 && data) {
+        setExamData(data);
+        updateDashboardData(data);
+      } else {
+        throw new Error(error || 'Failed to fetch exam data');
+      }
+    } catch (error) {
+      console.error('Error fetching exam data:', error);
+      setCompletionError('Failed to load exam data. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateDashboardData = (data: ExamData) => {
+    const formattedTestDate = formatDate(data.test_date);
+    const daysDiff = calculateDaysRemaining(formattedTestDate, new Date().toISOString());
+    setDaysRemaining(daysDiff);
+
+    const totalTasks = Object.values(data.test_plan.total_plan).flat().length;
+    const completedTasks = Object.values(data.test_plan.total_plan).flat().filter(task => task.is_done).length;
+    const rate = Math.round((completedTasks / totalTasks) * 100);
+    setProgressRate(rate);
+
+    const weeks = Object.keys(data.test_plan.total_plan);
+    setCurrentWeek(weeks[0]);
+  };
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
@@ -140,21 +160,19 @@ export default function Page() {
       const weekTasks = examData.test_plan.total_plan[currentWeek];
       const completed = weekTasks.filter(task => task.is_done).length;
       setWeeklyProgress({ completed, total: weekTasks.length });
-    
-      // Set current task
-      const currentTaskIndex = weekTasks.findIndex(task => !task.is_done);
-      if (currentTaskIndex !== -1) {
+  
+      // Update current task based on currentTaskIndex
+      if (weekTasks && weekTasks.length > 0) {
+        const taskIndex = Math.min(currentTaskIndex, weekTasks.length - 1);
         setCurrentTask({
           week: currentWeek,
-          task: weekTasks[currentTaskIndex].task,
-          index: currentTaskIndex,
-          is_done: weekTasks[currentTaskIndex].is_done
+          task: weekTasks[taskIndex].task,
+          index: taskIndex,
+          is_done: weekTasks[taskIndex].is_done
         });
-      } else {
-        setCurrentTask(null);
       }
     }
-  }, [examData, currentWeek]);
+  }, [examData, currentWeek, currentTaskIndex]);
 
   useEffect(() => {
     if (examData) {
@@ -224,27 +242,39 @@ export default function Page() {
 
   const updateCurrentWeekAndTask = (data: ExamData) => {
     const weeks = Object.keys(data.test_plan.total_plan);
-    let foundTask = false;
-
-    for (const week of weeks) {
-      const tasks = data.test_plan.total_plan[week];
-      const taskIndex = tasks.findIndex((_, index) => index === currentTaskIndex);
-
-      if (taskIndex !== -1) {
-        setCurrentWeek(week);
-        setCurrentTask({
-          week,
-          task: tasks[taskIndex].task,
-          index: taskIndex,
-          is_done: tasks[taskIndex].is_done
-        });
-        foundTask = true;
-        break;
-      }
+  
+    // If currentWeek is not set or invalid, set it to the first week
+    if (!weeks.includes(currentWeek)) {
+      setCurrentWeek(weeks[0]);
     }
 
-    if (!foundTask) {
-      setCurrentTask(null);
+    const currentWeekTasks = data.test_plan.total_plan[currentWeek];
+  
+    if (currentWeekTasks && currentWeekTasks.length > 0) {
+      const taskIndex = Math.min(currentTaskIndex, currentWeekTasks.length - 1);
+      setCurrentTask({
+        week: currentWeek,
+        task: currentWeekTasks[taskIndex].task,
+        index: taskIndex,
+        is_done: currentWeekTasks[taskIndex].is_done
+      });
+      setCurrentTaskIndex(taskIndex);
+    } else {
+      // If current week has no tasks, find the first week with tasks
+      for (const week of weeks) {
+        const tasks = data.test_plan.total_plan[week];
+        if (tasks.length > 0) {
+          setCurrentWeek(week);
+          setCurrentTask({
+            week: week,
+            task: tasks[0].task,
+            index: 0,
+            is_done: tasks[0].is_done
+          });
+          setCurrentTaskIndex(0);
+          break;
+        }
+      }
     }
   };
 
@@ -254,35 +284,42 @@ export default function Page() {
     const weeks = Object.keys(examData.test_plan.total_plan);
     let newIndex = currentTaskIndex + (direction === 'next' ? 1 : -1);
     let newWeek = currentWeek;
-    let foundTask = false;
 
-    while (!foundTask) {
+    const adjustWeekAndIndex = () => {
       if (newIndex < 0) {
+        // Move to the previous week
         const prevWeekIndex = weeks.indexOf(newWeek) - 1;
-        if (prevWeekIndex < 0) break;
-        newWeek = weeks[prevWeekIndex];
+        if (prevWeekIndex < 0) {
+          // Wrap around to the last week
+          newWeek = weeks[weeks.length - 1];
+        } else {
+          newWeek = weeks[prevWeekIndex];
+        }
         newIndex = examData.test_plan.total_plan[newWeek].length - 1;
       } else if (newIndex >= examData.test_plan.total_plan[newWeek].length) {
+        // Move to the next week
         const nextWeekIndex = weeks.indexOf(newWeek) + 1;
-        if (nextWeekIndex >= weeks.length) break;
-        newWeek = weeks[nextWeekIndex];
+        if (nextWeekIndex >= weeks.length) {
+          // Wrap around to the first week
+          newWeek = weeks[0];
+        } else {
+          newWeek = weeks[nextWeekIndex];
+        }
         newIndex = 0;
-      } else {
-        foundTask = true;
       }
-    }
+    };
 
-    if (foundTask) {
-      setCurrentTaskIndex(newIndex);
-      setCurrentWeek(newWeek);
-      const task = examData.test_plan.total_plan[newWeek][newIndex];
-      setCurrentTask({
-        week: newWeek,
-        task: task.task,
-        index: newIndex,
-        is_done: task.is_done
-      });
-    }
+    adjustWeekAndIndex();
+
+    setCurrentTaskIndex(newIndex);
+    setCurrentWeek(newWeek);
+    const task = examData.test_plan.total_plan[newWeek][newIndex];
+    setCurrentTask({
+      week: newWeek,
+      task: task.task,
+      index: newIndex,
+      is_done: task.is_done
+    });
   };
 
   if (!examData) {
@@ -349,14 +386,18 @@ export default function Page() {
       </div>
 
       {/* Current Study */}
-      <Card className="p-6">
-        <div className="flex justify-between items-center mb-4">
-          <button onClick={() => navigateTask('prev')} disabled={isLoading}>
-            <ChevronLeft className="w-6 h-6" />
-          </button>
-          <div className="flex-1 mx-4">
+      <div className="relative group">
+        <button 
+          className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-full opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={() => navigateTask('prev')} 
+          disabled={isLoading}
+        >
+          <ChevronLeft className="w-6 h-6" />
+        </button>
+        <Card className="p-6">
+          <div className="flex-1">
             <h2 className="text-lg font-semibold">이번 학습</h2>
-            {currentTask ? (
+            {currentTask && (
               <div className="flex justify-between items-center mt-2">
                 <div>
                   <p className="text-sm">{currentTask.task}</p>
@@ -369,18 +410,20 @@ export default function Page() {
                   {isLoading ? '처리 중...' : currentTask.is_done ? '체크 취소' : '완료 체크'}
                 </Button>
               </div>
-            ) : (
-              <p className="text-sm">모든 학습을 완료했습니다!</p>
             )}
           </div>
-          <button onClick={() => navigateTask('next')} disabled={isLoading}>
-            <ChevronRight className="w-6 h-6" />
-          </button>
-        </div>
-        {completionError && (
-          <p className="text-red-500 text-sm mt-2">{completionError}</p>
-        )}
-      </Card>
+          {completionError && (
+            <p className="text-red-500 text-sm mt-2">{completionError}</p>
+          )}
+        </Card>
+        <button 
+          className="absolute right-0 top-1/2 transform -translate-y-1/2 translate-x-full opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={() => navigateTask('next')} 
+          disabled={isLoading}
+        >
+          <ChevronRight className="w-6 h-6" />
+        </button>
+      </div>
 
       {/* Schedule */}
       <div className="space-y-4">
@@ -399,15 +442,15 @@ export default function Page() {
 
         <div className="flex justify-between items-center">
           <span>리마인더 스타일</span>
-          <Select defaultValue="default">
+          <Select defaultValue="encourage">
             <SelectTrigger className="w-32">
               <SelectValue placeholder="리마인더스타일" />
             </SelectTrigger>
             <SelectContent>
-            <SelectItem value="default">기본</SelectItem>
-              <SelectItem value="cheer">격려</SelectItem>
-              <SelectItem value="fact">팩폭</SelectItem>
-              <SelectItem value="wit">위트</SelectItem>
+            <SelectItem value="encourage">격려</SelectItem>
+              <SelectItem value="harsh">팩폭</SelectItem>
+              <SelectItem value="polite">정중</SelectItem>
+              <SelectItem value="witty">위트</SelectItem>
             </SelectContent>
           </Select>
         </div>
