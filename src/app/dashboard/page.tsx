@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from 'next/navigation';
 
-import { Clock } from 'lucide-react'
+import { Clock, MessageCircle, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -16,10 +16,10 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ProgressDot } from '@/components/progress-dot'
-import { MessageCircle } from 'lucide-react'
 
 import { ModeToggle } from "@/components/theme-toggle";
 import { calculateDaysRemaining, formatDate } from '@/utils/date';
+import { useApi } from "@/hooks/useApi";
 
 function CircularProgress({ value }: { value: number }) {
   const radius = 60;
@@ -73,7 +73,11 @@ interface ExamData {
   test_name: string;
   test_date: string;
   test_place: string;
-  test_plan: Array<{ target_date: string; target: string }>;
+  test_plan: {
+    total_plan: {
+      [key: string]: Array<{ task: string; is_done: boolean }>
+    }
+  };
   created_at: string;
   updated_at: string;
   on_progress: boolean;
@@ -87,6 +91,15 @@ export default function Page() {
   const router = useRouter()
   const [examData, setExamData] = useState<ExamData | null>(null);
   const [daysRemaining, setDaysRemaining] = useState<number>(0);
+  const [progressRate, setProgressRate] = useState<number>(0);
+  const [currentWeek, setCurrentWeek] = useState<string>('');
+  const [weeklyProgress, setWeeklyProgress] = useState<{ completed: number; total: number }>({ completed: 0, total: 0 });
+  const [currentTask, setCurrentTask] = useState<{ week: string; task: string; index: number; is_done: boolean } | null>(null);
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [completionError, setCompletionError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentTaskIndex, setCurrentTaskIndex] = useState(0);
+  const { apiCall } = useApi();
 
   useEffect(() => {
     const auth = checkAuth();
@@ -103,6 +116,16 @@ export default function Page() {
         const formattedTestDate = formatDate(parsedExamData.test_date);
         const daysDiff = calculateDaysRemaining(formattedTestDate, new Date().toISOString());
         setDaysRemaining(daysDiff);
+
+        // Calculate progress rate
+        const totalTasks = Object.values(parsedExamData.test_plan.total_plan).flat().length;
+        const completedTasks = Object.values(parsedExamData.test_plan.total_plan).flat().filter(task => task.is_done).length;
+        const rate = Math.round((completedTasks / totalTasks) * 100);
+        setProgressRate(rate);
+
+        // Set initial current week
+        const weeks = Object.keys(parsedExamData.test_plan.total_plan);
+        setCurrentWeek(weeks[0]);
       }
     }
   }, []);
@@ -111,6 +134,156 @@ export default function Page() {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
+
+  useEffect(() => {
+    if (examData && currentWeek) {
+      const weekTasks = examData.test_plan.total_plan[currentWeek];
+      const completed = weekTasks.filter(task => task.is_done).length;
+      setWeeklyProgress({ completed, total: weekTasks.length });
+    
+      // Set current task
+      const currentTaskIndex = weekTasks.findIndex(task => !task.is_done);
+      if (currentTaskIndex !== -1) {
+        setCurrentTask({
+          week: currentWeek,
+          task: weekTasks[currentTaskIndex].task,
+          index: currentTaskIndex,
+          is_done: weekTasks[currentTaskIndex].is_done
+        });
+      } else {
+        setCurrentTask(null);
+      }
+    }
+  }, [examData, currentWeek]);
+
+  useEffect(() => {
+    if (examData) {
+      updateCurrentWeekAndTask(examData);
+    }
+  }, [examData]);
+
+
+  const handleWeekChange = (direction: 'prev' | 'next') => {
+    if (examData) {
+      const weeks = Object.keys(examData.test_plan.total_plan);
+      const currentIndex = weeks.indexOf(currentWeek);
+      if (direction === 'prev' && currentIndex > 0) {
+        setCurrentWeek(weeks[currentIndex - 1]);
+      } else if (direction === 'next' && currentIndex < weeks.length - 1) {
+        setCurrentWeek(weeks[currentIndex + 1]);
+      }
+    }
+  };
+
+  const handleTaskCompletion = async () => {
+    if (!currentTask || !examData) return;
+
+    setIsLoading(true);
+    setCompletionError(null);
+
+    try {
+      const { status } = await apiCall(
+        `/api/v1/testplans/?user_id=${examData.user_id}&plan_id=${examData.plan_id}`,
+        'PATCH',
+        {
+          week: currentTask.week,
+          task_idx: currentTask.index
+        }
+      );
+
+      if (status === 200) {
+        // Fetch updated exam plan data
+        const { data, error, status: getStatus } = await apiCall<ExamData>(
+          `/api/v1/testplans/?user_id=${examData.user_id}&plan_id=${examData.plan_id}`,
+          'GET'
+        );
+
+        if (getStatus === 200 && data) {
+          setExamData(data);
+        
+          // Recalculate progress rate
+          const totalTasks = Object.values(data.test_plan.total_plan).flat().length;
+          const completedTasks = Object.values(data.test_plan.total_plan).flat().filter(task => task.is_done).length;
+          const rate = Math.round((completedTasks / totalTasks) * 100);
+          setProgressRate(rate);
+
+          // Update current week and task
+          updateCurrentWeekAndTask(data);
+        } else {
+          setCompletionError('Failed to fetch updated exam plan data.');
+        }
+      } else {
+        setCompletionError('Failed to complete the task. Please try again.');
+      }
+    } catch (error) {
+      setCompletionError('An error occurred while completing the task.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateCurrentWeekAndTask = (data: ExamData) => {
+    const weeks = Object.keys(data.test_plan.total_plan);
+    let foundTask = false;
+
+    for (const week of weeks) {
+      const tasks = data.test_plan.total_plan[week];
+      const taskIndex = tasks.findIndex((_, index) => index === currentTaskIndex);
+
+      if (taskIndex !== -1) {
+        setCurrentWeek(week);
+        setCurrentTask({
+          week,
+          task: tasks[taskIndex].task,
+          index: taskIndex,
+          is_done: tasks[taskIndex].is_done
+        });
+        foundTask = true;
+        break;
+      }
+    }
+
+    if (!foundTask) {
+      setCurrentTask(null);
+    }
+  };
+
+  const navigateTask = (direction: 'prev' | 'next') => {
+    if (!examData) return;
+
+    const weeks = Object.keys(examData.test_plan.total_plan);
+    let newIndex = currentTaskIndex + (direction === 'next' ? 1 : -1);
+    let newWeek = currentWeek;
+    let foundTask = false;
+
+    while (!foundTask) {
+      if (newIndex < 0) {
+        const prevWeekIndex = weeks.indexOf(newWeek) - 1;
+        if (prevWeekIndex < 0) break;
+        newWeek = weeks[prevWeekIndex];
+        newIndex = examData.test_plan.total_plan[newWeek].length - 1;
+      } else if (newIndex >= examData.test_plan.total_plan[newWeek].length) {
+        const nextWeekIndex = weeks.indexOf(newWeek) + 1;
+        if (nextWeekIndex >= weeks.length) break;
+        newWeek = weeks[nextWeekIndex];
+        newIndex = 0;
+      } else {
+        foundTask = true;
+      }
+    }
+
+    if (foundTask) {
+      setCurrentTaskIndex(newIndex);
+      setCurrentWeek(newWeek);
+      const task = examData.test_plan.total_plan[newWeek][newIndex];
+      setCurrentTask({
+        week: newWeek,
+        task: task.task,
+        index: newIndex,
+        is_done: task.is_done
+      });
+    }
+  };
 
   if (!examData) {
     return <div>Loading...</div>;
@@ -151,36 +324,62 @@ export default function Page() {
         </Card>
         
         <div className="flex justify-center items-center">
-          <CircularProgress value={61} />
+          <CircularProgress value={progressRate} />
         </div>
 
         <Card className="border-none shadow-none bg-background flex flex-col justify-center items-center p-4 h-40">
-          <div className="flex gap-2 mb-4">
-            <ProgressDot status="completed" />
-            <ProgressDot status="completed" />
-            <ProgressDot status="completed" />
-            <ProgressDot status="current" />
-            <ProgressDot status="upcoming" />
+          <div className="flex items-center gap-2 mb-4">
+            <button onClick={() => handleWeekChange('prev')}><ChevronLeft className="w-4 h-4" /></button>
+            <div className="flex gap-2">
+              {examData.test_plan.total_plan[currentWeek].map((task, index) => (
+                <ProgressDot 
+                  key={index} 
+                  status={
+                    task.is_done ? 'completed' : 
+                    (index === weeklyProgress.completed ? 'current' : 'upcoming')
+                  } 
+                />
+              ))}
+            </div>
+            <button onClick={() => handleWeekChange('next')}><ChevronRight className="w-4 h-4" /></button>
           </div>
-          <h2 className="text-m">이번 주 학습</h2>
-          <p className="text-3xl font-semibold mb-4">3 / 5 완료</p>
+          <h2 className="text-m">{currentWeek} 학습</h2>
+          <p className="text-3xl font-semibold mb-4">{weeklyProgress.completed} / {weeklyProgress.total} 완료</p>
         </Card>
       </div>
 
-      {/* Today's Study */}
+      {/* Current Study */}
       <Card className="p-6">
-        <div>          
-          <h2 className="text-lg font-semibold">오늘의 학습</h2>
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <p className="text-sm">데이터베이스 3장: SQL 기초</p>
-              <p className="text-sm">예상 학습 시간: 2시간</p>
-            </div>            
-            <Button variant="default">완료 체크</Button>
+        <div className="flex justify-between items-center mb-4">
+          <button onClick={() => navigateTask('prev')} disabled={isLoading}>
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+          <div className="flex-1 mx-4">
+            <h2 className="text-lg font-semibold">이번 학습</h2>
+            {currentTask ? (
+              <div className="flex justify-between items-center mt-2">
+                <div>
+                  <p className="text-sm">{currentTask.task}</p>
+                </div>            
+                <Button 
+                  variant="default" 
+                  onClick={handleTaskCompletion}
+                  disabled={isLoading}
+                >
+                  {isLoading ? '처리 중...' : currentTask.is_done ? '체크 취소' : '완료 체크'}
+                </Button>
+              </div>
+            ) : (
+              <p className="text-sm">모든 학습을 완료했습니다!</p>
+            )}
           </div>
+          <button onClick={() => navigateTask('next')} disabled={isLoading}>
+            <ChevronRight className="w-6 h-6" />
+          </button>
         </div>
-        <Progress value={57} className="h-2" />
-        <p className="text-right text-sm mt-2">42분 남음</p>
+        {completionError && (
+          <p className="text-red-500 text-sm mt-2">{completionError}</p>
+        )}
       </Card>
 
       {/* Schedule */}

@@ -2,16 +2,17 @@
 
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ChevronUp, ChevronDown } from 'lucide-react'
 
 interface DraggableStudyPlanProps {
   id: string
   week: string
+  isFirstWeek?: boolean
 }
 
 export function DraggableStudyPlan({ 
   id, 
-  week
+  week,
+  isFirstWeek = false
 }: DraggableStudyPlanProps) {
   const {
     attributes,
@@ -20,7 +21,10 @@ export function DraggableStudyPlan({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id })
+  } = useSortable({ 
+    id,
+    disabled: isFirstWeek
+  })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -33,17 +37,13 @@ export function DraggableStudyPlan({
       style={style}
       {...attributes}
       {...listeners}
-      className={`select-none ${isDragging ? 'z-10' : ''} cursor-grab 
-                  bg-white shadow-md rounded-lg p-4 mb-4 border border-gray-200`}
+      className={`select-none ${isDragging ? 'z-10' : ''} ${isFirstWeek ? 'cursor-default' : 'cursor-grab'} 
+                  p-4 mb-4`}
     >
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-lg font-semibold">{week}</h3>
-        <div className="flex flex-col">
-          <ChevronUp className="w-4 h-4" />
-          <ChevronDown className="w-4 h-4" />
-        </div>
+      <div className="flex items-center">
+        <h3 className="text-lg font-semibold mr-2">{week}</h3>
+        <div className="flex-grow h-px bg-gray-300"></div>
       </div>
-      <div className="h-px bg-gray-300"></div>
     </div>
   )
 }

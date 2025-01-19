@@ -37,6 +37,7 @@ interface PlanItem {
   id: string
   type: 'week' | 'task'
   content: string
+  weekNumber?: number
 }
 
 export default function PlanPreviewPage() {
@@ -77,7 +78,7 @@ export default function PlanPreviewPage() {
           
           const items: PlanItem[] = []
           Object.entries(parsedPlan.total_plan).forEach(([week, tasks], weekIndex) => {
-            items.push({ id: `week-${weekIndex + 1}`, type: 'week', content: week })
+            items.push({ id: `week-${weekIndex + 1}`, type: 'week', content: week, weekNumber: weekIndex + 1 })
             tasks.forEach((task, taskIndex) => {
               items.push({ id: `task-${weekIndex + 1}-${taskIndex + 1}`, type: 'task', content: task })
             })
@@ -102,6 +103,23 @@ export default function PlanPreviewPage() {
       setPlanItems((items) => {
         const oldIndex = items.findIndex((item) => item.id === active.id)
         const newIndex = items.findIndex((item) => item.id === over.id)
+
+        // Prevent moving the first week
+        if (items[oldIndex].type === 'week' && items[oldIndex].weekNumber === 1) {
+          return items
+        }
+
+        // Check if the move is valid (maintaining week order)
+        if (items[oldIndex].type === 'week') {
+          const oldWeekNumber = items[oldIndex].weekNumber!
+          const newWeekNumber = items[newIndex].type === 'week' ? items[newIndex].weekNumber! : 
+            (newIndex > oldIndex ? items[newIndex-1].weekNumber! : items[newIndex+1].weekNumber!)
+
+          if (Math.abs(oldWeekNumber - newWeekNumber) !== 1) {
+            return items
+          }
+        }
+
         return arrayMove(items, oldIndex, newIndex)
       })
     }
@@ -122,14 +140,14 @@ export default function PlanPreviewPage() {
     }
 
     // Reconstruct the total_plan based on the current order of planItems
-    const total_plan: { [key: string]: string[] } = {}
+    const total_plan: { [key: string]: { task: string; is_done: boolean }[] } = {}
     let currentWeek = ''
     planItems.forEach((item) => {
       if (item.type === 'week') {
         currentWeek = item.content
         total_plan[currentWeek] = []
       } else if (item.type === 'task' && currentWeek) {
-        total_plan[currentWeek].push(item.content)
+        total_plan[currentWeek].push({ task: item.content, is_done: false })
       }
     })
 
@@ -234,6 +252,7 @@ export default function PlanPreviewPage() {
                   key={item.id}
                   id={item.id}
                   week={item.content}
+                  isFirstWeek={item.weekNumber === 1}
                 />
               ) : (
                 <StudyPlanItem
