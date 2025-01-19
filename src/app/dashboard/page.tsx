@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from 'next/navigation';
 
-import { Clock, MessageCircle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Clock, MessageCircle, ChevronLeft, ChevronRight, Bell, MessageSquare, AlarmClockIcon as Alarm } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -20,6 +20,8 @@ import { ProgressDot } from '@/components/progress-dot'
 import { ModeToggle } from "@/components/theme-toggle";
 import { calculateDaysRemaining, formatDate } from '@/utils/date';
 import { useApi } from "@/hooks/useApi";
+import { TimePicker } from "@/components/ui/time-picker"
+import { Switch } from "@/components/ui/switch"
 
 function CircularProgress({ value }: { value: number }) {
   const radius = 60;
@@ -99,6 +101,7 @@ export default function Page() {
   const [completionError, setCompletionError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [currentTaskIndex, setCurrentTaskIndex] = useState(0);
+  const [isNotificationEnabled, setIsNotificationEnabled] = useState(true);
   const { apiCall } = useApi();
 
   useEffect(() => {
@@ -429,31 +432,66 @@ export default function Page() {
       <div className="space-y-4">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <Clock className="w-5 h-5" />
-            <span>학습 시작 알림</span>
+            <Bell className="w-5 h-5" />
+            <span>학습 알림</span>
           </div>
-          <span>오전 9:00</span>
+          <Switch
+            checked={isNotificationEnabled}
+            onCheckedChange={setIsNotificationEnabled}
+          />
         </div>
         
-        <div className="flex justify-between items-center">
-          <span>학습 알림 주기</span>
-          <span>0.1초 마다</span>
-        </div>
+        {isNotificationEnabled && (
+          <>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Clock className="w-5 h-5" />
+                <span>학습 알림 시간</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <TimePicker label="시작" />
+                <span>~</span>
+                <TimePicker label="종료" />
+              </div>
+            </div>
+            
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Alarm className="w-5 h-5" />
+                <span>학습 알림 주기</span>
+              </div>
+              <Select defaultValue="1">
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="알림 주기" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1시간마다</SelectItem>
+                  <SelectItem value="2">2시간마다</SelectItem>
+                  <SelectItem value="3">3시간마다</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-        <div className="flex justify-between items-center">
-          <span>리마인더 스타일</span>
-          <Select defaultValue="encourage">
-            <SelectTrigger className="w-32">
-              <SelectValue placeholder="리마인더스타일" />
-            </SelectTrigger>
-            <SelectContent>
-            <SelectItem value="encourage">격려</SelectItem>
-              <SelectItem value="harsh">팩폭</SelectItem>
-              <SelectItem value="polite">정중</SelectItem>
-              <SelectItem value="witty">위트</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-5 h-5" />
+                <span>리마인더 스타일</span>
+              </div>
+              <Select defaultValue="encourage">
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="리마인더스타일" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="encourage">격려</SelectItem>
+                  <SelectItem value="harsh">팩폭</SelectItem>
+                  <SelectItem value="polite">정중</SelectItem>
+                  <SelectItem value="witty">위트</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </>
+        )}
+
       </div>
 
       {/* Message Card */}
