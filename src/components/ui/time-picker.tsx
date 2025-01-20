@@ -13,11 +13,19 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 interface TimePickerProps {
-  label: string
+  label: string;
+  value?: string;
+  onChange: (time: string) => void;
 }
 
-export function TimePicker({ label }: TimePickerProps) {
-  const [selectedTime, setSelectedTime] = React.useState<string>("12:00")
+export function TimePicker({ label, value, onChange }: TimePickerProps) {
+  const [selectedTime, setSelectedTime] = React.useState<string>(value || "12:00");
+
+  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTime = e.target.value;
+    setSelectedTime(newTime);
+    onChange(newTime);
+  };
 
   return (
     <Popover>
@@ -40,10 +48,10 @@ export function TimePicker({ label }: TimePickerProps) {
             id={`${label}-time-picker`}
             type="time"
             value={selectedTime}
-            onChange={(e) => setSelectedTime(e.target.value)}
+            onChange={handleTimeChange}
           />
         </div>
       </PopoverContent>
     </Popover>
-  )
+  );
 }

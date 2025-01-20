@@ -87,6 +87,18 @@ interface ExamData {
   user_id: number;
 }
 
+interface ReminderSettings {
+  reminder_id: number;
+  test_plan: number;
+  start_hour: number;
+  start_minute: number;
+  end_hour: number;
+  end_minute: number;
+  interval_hours: number;
+  message_style: string;
+  is_active: boolean;
+}
+
 export default function Page() {
   const [currentTime, setCurrentTime] = useState(new Date())
   const { checkAuth } = useAuth();
@@ -101,7 +113,7 @@ export default function Page() {
   const [completionError, setCompletionError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [currentTaskIndex, setCurrentTaskIndex] = useState(0);
-  const [isNotificationEnabled, setIsNotificationEnabled] = useState(true);
+  const [reminderSettings, setReminderSettings] = useState<ReminderSettings | null>(null);
   const { apiCall } = useApi();
 
   useEffect(() => {
@@ -112,6 +124,12 @@ export default function Page() {
       fetchExamData();
     }
   }, []);
+
+  useEffect(() => {
+    if (examData) {
+      fetchReminderSettings();
+    }
+  }, [examData]);
 
   const fetchExamData = async () => {
     setIsLoading(true);
@@ -136,6 +154,50 @@ export default function Page() {
       setCompletionError('Failed to load exam data. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchReminderSettings = async () => {
+    try {
+      const { data, error, status } = await apiCall<ReminderSettings[]>(
+        '/api/v1/reminder/settings/',
+        'GET'
+      );
+      if (status === 200 && data) {
+        const matchedSetting = data.find(setting => setting.test_plan === examData?.id);
+        if (matchedSetting) {
+          setReminderSettings(matchedSetting);
+        } else {
+          await createReminderSettings();
+        }
+      } else {
+        throw new Error(error || 'Failed to fetch reminder settings');
+      }
+    } catch (error) {
+      console.error('Error fetching reminder settings:', error);
+    }
+  };
+
+  const createReminderSettings = async () => {
+    try {
+      const { data, error, status } = await apiCall<ReminderSettings>(
+        '/api/v1/reminder/settings/',
+        'POST',
+        {
+          test_plan: examData?.id,
+          start_hour: 9,
+          start_minute: 0,
+          end_hour: 18,
+          end_minute: 0
+        }
+      );
+      if (status === 201 && data) {
+        setReminderSettings(data);
+      } else {
+        throw new Error(error || 'Failed to create reminder settings');
+      }
+    } catch (error) {
+      console.error('Error creating reminder settings:', error);
     }
   };
 
@@ -325,7 +387,7 @@ export default function Page() {
     });
   };
 
-  if (!examData) {
+  if (!examData || !reminderSettings) {
     return <div>Loading...</div>;
   }
 
@@ -436,12 +498,15 @@ export default function Page() {
             <span>학습 알림</span>
           </div>
           <Switch
-            checked={isNotificationEnabled}
-            onCheckedChange={setIsNotificationEnabled}
+            checked={reminderSettings.is_active}
+            onCheckedChange={(checked) => {
+              setReminderSettings({...reminderSettings, is_active: checked});
+              // TODO: Update the backend with the new is_active status
+            }}
           />
         </div>
         
-        {isNotificationEnabled && (
+        {reminderSettings.is_active && (
           <>
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
@@ -449,9 +514,25 @@ export default function Page() {
                 <span>학습 알림 시간</span>
               </div>
               <div className="flex items-center gap-2">
-                <TimePicker label="시작" />
+                <TimePicker 
+                  label="시작" 
+                  value={`${reminderSettings.start_hour.toString().padStart(2, '0')}:${reminderSettings.start_minute.toString().padStart(2, '0')}`}
+                  onChange={(time) => {
+                    const [hour, minute] = time.split(':').map(Number);
+                    setReminderSettings({...reminderSettings, start_hour: hour, start_minute: minute});
+                    // TODO: Update the backend with the new start time
+                  }}
+                />
                 <span>~</span>
-                <TimePicker label="종료" />
+                <TimePicker 
+                  label="종료" 
+                  value={`${reminderSettings.end_hour.toString().padStart(2, '0')}:${reminderSettings.end_minute.toString().padStart(2, '0')}`}
+                  onChange={(time) => {
+                    const [hour, minute] = time.split(':').map(Number);
+                    setReminderSettings({...reminderSettings, end_hour: hour, end_minute: minute});
+                    // TODO: Update the backend with the new end time
+                  }}
+                />
               </div>
             </div>
             
@@ -460,7 +541,13 @@ export default function Page() {
                 <Alarm className="w-5 h-5" />
                 <span>학습 알림 주기</span>
               </div>
-              <Select defaultValue="1">
+              <Select 
+                value={reminderSettings.interval_hours.toString()}
+                onValueChange={(value) => {
+                  setReminderSettings({...reminderSettings, interval_hours: Number(value)});
+                  // TODO: Update the backend with the new interval_hours
+                }}
+              >
                 <SelectTrigger className="w-32">
                   <SelectValue placeholder="알림 주기" />
                 </SelectTrigger>
@@ -477,7 +564,13 @@ export default function Page() {
                 <MessageSquare className="w-5 h-5" />
                 <span>리마인더 스타일</span>
               </div>
-              <Select defaultValue="encourage">
+              <Select 
+                value={reminderSettings.message_style}
+                onValueChange={(value) => {
+                  setReminderSettings({...reminderSettings, message_style: value});
+                  // TODO: Update the backend with the new message_style
+                }}
+              >
                 <SelectTrigger className="w-32">
                   <SelectValue placeholder="리마인더스타일" />
                 </SelectTrigger>
@@ -506,3 +599,4 @@ export default function Page() {
     </div>
   )
 }
+
