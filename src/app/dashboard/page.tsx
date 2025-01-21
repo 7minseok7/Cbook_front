@@ -132,6 +132,7 @@ export default function Page() {
   const [completionError, setCompletionError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [currentTaskIndex, setCurrentTaskIndex] = useState(0)
+  const [tempReminderSettings, setTempReminderSettings] = useState<ReminderSettings | null>(null)
   const [reminderSettings, setReminderSettings] = useState<ReminderSettings | null>(null)
   const [isAllTasksCompleted, setIsAllTasksCompleted] = useState(false)
   const [showNotificationSettings, setShowNotificationSettings] = useState(false)
@@ -416,6 +417,12 @@ export default function Page() {
     })
   }
 
+  useEffect(() => {
+    if (reminderSettings) {
+      setTempReminderSettings(reminderSettings)
+    }
+  }, [reminderSettings])
+
   const updateReminderSettings = async (key: string, value: any) => {
     if (!reminderSettings) return
 
@@ -606,23 +613,33 @@ export default function Page() {
               <div className="flex items-center gap-2">
                 <span>시작</span>
                 <TimePicker
-                  value={`${reminderSettings.start_hour.toString().padStart(2, "0")}:${reminderSettings.start_minute.toString().padStart(2, "0")}`}
+                  value={`${tempReminderSettings?.start_hour.toString().padStart(2, "0")}:${tempReminderSettings?.start_minute.toString().padStart(2, "0")}`}
                   onChange={(time) => {
                     const [hour, minute] = time.split(":").map(Number)
+                    setTempReminderSettings((prev) => ({
+                      ...prev!,
+                      start_hour: hour,
+                      start_minute: minute,
+                    }))
                     updateReminderSettings("start_hour", hour)
                     updateReminderSettings("start_minute", minute)
                   }}
-                  maxTime={`${reminderSettings.end_hour.toString().padStart(2, "0")}:${reminderSettings.end_minute.toString().padStart(2, "0")}`}
+                  maxTime={`${tempReminderSettings?.end_hour.toString().padStart(2, "0")}:${tempReminderSettings?.end_minute.toString().padStart(2, "0")}`}
                 />
                 <span>종료</span>
                 <TimePicker
-                  value={`${reminderSettings.end_hour.toString().padStart(2, "0")}:${reminderSettings.end_minute.toString().padStart(2, "0")}`}
+                  value={`${tempReminderSettings?.end_hour.toString().padStart(2, "0")}:${tempReminderSettings?.end_minute.toString().padStart(2, "0")}`}
                   onChange={(time) => {
                     const [hour, minute] = time.split(":").map(Number)
+                    setTempReminderSettings((prev) => ({
+                      ...prev!,
+                      end_hour: hour,
+                      end_minute: minute,
+                    }))
                     updateReminderSettings("end_hour", hour)
                     updateReminderSettings("end_minute", minute)
                   }}
-                  minTime={`${reminderSettings.start_hour.toString().padStart(2, "0")}:${reminderSettings.start_minute.toString().padStart(2, "0")}`}
+                  minTime={`${tempReminderSettings?.start_hour.toString().padStart(2, "0")}:${tempReminderSettings?.start_minute.toString().padStart(2, "0")}`}
                 />
               </div>
             </div>

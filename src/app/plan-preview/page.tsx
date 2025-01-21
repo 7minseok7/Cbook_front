@@ -11,7 +11,6 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import type { DragEndEvent } from "@dnd-kit/core"
 import { calculateDaysRemaining, formatDate } from "@/utils/date"
-import { Plus } from "lucide-react"
 
 interface StudyPlan {
   book_title: string
@@ -26,7 +25,7 @@ interface PlanItem {
   id: string
   type: "week" | "task"
   content: string
-  weekNumber?: number
+  weekNumber: number
 }
 
 export default function PlanPreviewPage() {
@@ -75,7 +74,12 @@ export default function PlanPreviewPage() {
           Object.entries(parsedPlan.total_plan).forEach(([week, tasks], weekIndex) => {
             items.push({ id: `week-${weekIndex + 1}`, type: "week", content: week, weekNumber: weekIndex + 1 })
             tasks.forEach((task, taskIndex) => {
-              items.push({ id: `task-${weekIndex + 1}-${taskIndex + 1}`, type: "task", content: task })
+              items.push({
+                id: `task-${weekIndex + 1}-${taskIndex + 1}`,
+                type: "task",
+                content: task,
+                weekNumber: weekIndex + 1,
+              })
             })
           })
           setPlanItems(items)
@@ -99,24 +103,9 @@ export default function PlanPreviewPage() {
         const oldIndex = items.findIndex((item) => item.id === active.id)
         const newIndex = items.findIndex((item) => item.id === over.id)
 
-        // Prevent moving the first week
-        if (items[oldIndex].type === "week" && items[oldIndex].weekNumber === 1) {
-          return items
-        }
-
-        // Check if the move is valid (maintaining week order)
+        // Prevent moving weeks
         if (items[oldIndex].type === "week") {
-          const oldWeekNumber = items[oldIndex].weekNumber!
-          const newWeekNumber =
-            items[newIndex].type === "week"
-              ? items[newIndex].weekNumber!
-              : newIndex > oldIndex
-                ? items[newIndex - 1].weekNumber!
-                : items[newIndex + 1].weekNumber!
-
-          if (Math.abs(oldWeekNumber - newWeekNumber) !== 1) {
-            return items
-          }
+          return items
         }
 
         return arrayMove(items, oldIndex, newIndex)
@@ -184,32 +173,6 @@ export default function PlanPreviewPage() {
     }
   }
 
-  const handleDeleteTask = (taskId: string) => {
-    setPlanItems((prevItems) => prevItems.filter((item) => item.id !== taskId))
-  }
-
-  const handleAddTask = (weekNumber: number) => {
-    setPlanItems((prevItems) => {
-      const newItems = [...prevItems]
-      const lastTaskIndex = newItems.filter(
-        (item) => item.type === "task" && item.id.startsWith(`task-${weekNumber}`),
-      ).length
-      const newTaskId = `task-${weekNumber}-${lastTaskIndex + 1}`
-      const weekIndex = newItems.findIndex((item) => item.type === "week" && item.weekNumber === weekNumber)
-      const insertIndex = newItems.findIndex((item, index) => index > weekIndex && item.type === "week")
-      newItems.splice(insertIndex === -1 ? newItems.length : insertIndex, 0, {
-        id: newTaskId,
-        type: "task",
-        content: "새 계획",
-      })
-      return newItems
-    })
-  }
-
-  const handleEditTask = (taskId: string, newContent: string) => {
-    setPlanItems((prevItems) => prevItems.map((item) => (item.id === taskId ? { ...item, content: newContent } : item)))
-  }
-
   if (error) {
     return (
       <div className="container max-w-2xl mx-auto p-4 space-y-6">
@@ -253,14 +216,9 @@ export default function PlanPreviewPage() {
             {nameError && <p className="text-red-500 mt-1 text-sm">시험 이름은 필수 항목입니다.</p>}
           </div>
           <div className="flex-1">
-            <Input 
-              placeholder="시험 장소 (선택)" 
-              value={testPlace} 
-              onChange={(e) => setTestPlace(e.target.value)} 
-            />
+            <Input placeholder="시험 장소 (선택)" value={testPlace} onChange={(e) => setTestPlace(e.target.value)} />
           </div>
         </div>
-        <p className="mt-4">세부 시험 계획을 두 번 누르면 내용을 수정할 수 있습니다.</p>
       </div>
 
       <div className="flex-grow overflow-y-auto p-4">
@@ -271,23 +229,10 @@ export default function PlanPreviewPage() {
                 <div key={item.id}>
                   <NonDraggableStudyPlan id={item.id} week={item.content} />
                   {planItems
-                    .filter((task) => task.type === "task" && task.id.startsWith(`task-${item.weekNumber}`))
+                    .filter((task) => task.type === "task" && task.weekNumber === item.weekNumber)
                     .map((task) => (
-                      <StudyPlanItem
-                        key={task.id}
-                        id={task.id}
-                        task={task.content}
-                        onDelete={() => handleDeleteTask(task.id)}
-                        onEdit={(newContent) => handleEditTask(task.id, newContent)}
-                      />
+                      <StudyPlanItem key={task.id} id={task.id} task={task.content} />
                     ))}
-                  <Button
-                    variant="ghost"
-                    className="py-2 px-4 rounded-md mb-2 mx-8 text-muted-foreground hover:text-foreground"
-                    onClick={() => handleAddTask(item.weekNumber!)}
-                  >
-                    <Plus className="w-4 h-4" />새 세부 계획 추가
-                  </Button>
                 </div>
               ) : null,
             )}

@@ -16,18 +16,30 @@ interface TimePickerProps {
 
 export function TimePicker({ value, onChange, maxTime, minTime }: TimePickerProps) {
   const [selectedTime, setSelectedTime] = React.useState<string>(value || "12:00")
+  const [tempTime, setTempTime] = React.useState<string>(value || "12:00")
+  const [open, setOpen] = React.useState(false)
 
   const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTime = e.target.value
     if ((minTime && newTime < minTime) || (maxTime && newTime > maxTime)) {
       return
     }
-    setSelectedTime(newTime)
-    onChange(newTime)
+    setTempTime(newTime)
+  }
+
+  const handleConfirm = () => {
+    setSelectedTime(tempTime)
+    onChange(tempTime)
+    setOpen(false)
+  }
+
+  const handleCancel = () => {
+    setTempTime(selectedTime)
+    setOpen(false)
   }
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant={"outline"}
@@ -42,12 +54,18 @@ export function TimePicker({ value, onChange, maxTime, minTime }: TimePickerProp
           <Input
             id="time-picker"
             type="time"
-            value={selectedTime}
+            value={tempTime}
             onChange={handleTimeChange}
             min={minTime}
             max={maxTime}
             className="text-center"
           />
+          <div className="flex justify-between mt-4">
+            <Button variant="outline" onClick={handleCancel}>
+              취소
+            </Button>
+            <Button onClick={handleConfirm}>확인</Button>
+          </div>
         </div>
       </PopoverContent>
     </Popover>
