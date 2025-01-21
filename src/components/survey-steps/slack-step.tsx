@@ -31,7 +31,7 @@ export function SlackStep({ email, onSubmit }: SlackStepProps) {
         <p className="font-semibold">🚀 Slack 계정이 없다면?</p>
         <Button 
           variant="secondary"
-          className="w-full py-2 text-base flex items-center justify-center space-x-2"
+          className="w-full py-2 bg-white text-base flex items-center justify-center space-x-2"
           onClick={() => window.open("https://slack.com/get-started#/createnew", "_blank")}
         >
           <Slack className="w-5 h-5" />
