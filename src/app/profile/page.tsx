@@ -460,21 +460,10 @@ export default function ProfilePage() {
             <AlertDialogDescription>이 작업은 되돌릴 수 없습니다.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            {isDeleting ? (
-              <p>삭제 중...</p>
-            ) : deleteMessage ? (
-              <>
-                <p>{deleteMessage}</p>
-                <AlertDialogAction onClick={() => setShowDeleteDialog(false)}>확인</AlertDialogAction>
-              </>
-            ) : (
-              <>
-                <AlertDialogCancel>취소</AlertDialogCancel>
-                <AlertDialogAction className="hover:bg-destructive/80 bg-destructive" onClick={handleDelete}>
-                  삭제
-                </AlertDialogAction>
-              </>
-            )}
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction className="hover:bg-destructive/80 bg-destructive" onClick={handleDelete}>
+              삭제
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -61,7 +61,7 @@ export default function RegisterPage() {
       <Card className="w-full max-w-md p-6 space-y-6">
         <Progress value={(step * 100) / 4} className="h-2" />
         <div className="flex items-center justify-between text-sm">
-          {(step > 1 && step < 4) ? (
+          {step > 1 && step < 4 ? (
             <Button variant="ghost" size="sm" onClick={handleBack} className="flex items-center">
               <ChevronLeft className="mr-2 h-4 w-4" />
               뒤로가기
